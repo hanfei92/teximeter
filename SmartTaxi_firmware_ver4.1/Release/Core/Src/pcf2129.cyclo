@@ -1,0 +1,15 @@
+../Core/Src/pcf2129.c:33:6:PCF2129_Init	1
+../Core/Src/pcf2129.c:71:11:PCF2129_getDate	7
+../Core/Src/pcf2129.c:179:9:PCF2129_read	2
+../Core/Src/pcf2129.c:46:6:PCF2129_searchDevice	1
+../Core/Src/pcf2129.c:201:6:PCF2129_write	1
+../Core/Src/pcf2129.c:129:6:PCF2129_setDate	1
+../Core/Src/pcf2129.c:149:6:PCF2129_set12mode	1
+../Core/Src/pcf2129.c:164:6:PCF2129_set24mode	1
+../Core/Src/pcf2129.c:58:6:PCF2129_configure	1
+../Core/Src/pcf2129.c:214:9:PCF2129_readCtrl	1
+../Core/Src/pcf2129.c:225:6:PCF2129_writeCtrl	1
+../Core/Src/pcf2129.c:237:9:bcdToDec	1
+../Core/Src/pcf2129.c:249:9:decToBcd	1
+../Core/Src/pcf2129.c:261:7:unixToUtc	12
+../Core/Src/pcf2129.c:354:10:utcToUnix	9
