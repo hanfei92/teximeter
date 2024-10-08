@@ -70,8 +70,8 @@ all: main-build
 main-build: SmartTaxi_firmware_ver4.0.elf secondary-outputs
 
 # Tool invocations
-SmartTaxi_firmware_ver4.0.elf SmartTaxi_firmware_ver4.0.map: $(OBJS) $(USER_OBJS) C:\Users\Hanfe\Desktop\edwin\SmartTaxi_firmware_ver4.1\STM32G071RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SmartTaxi_firmware_ver4.0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\Hanfe\Desktop\edwin\SmartTaxi_firmware_ver4.1\STM32G071RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SmartTaxi_firmware_ver4.0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+SmartTaxi_firmware_ver4.0.elf SmartTaxi_firmware_ver4.0.map: $(OBJS) $(USER_OBJS) C:\Users\Hanfe\Desktop\edwin\SmartTaxi_firmware_ver4.1.3\STM32G071RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "SmartTaxi_firmware_ver4.0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\Hanfe\Desktop\edwin\SmartTaxi_firmware_ver4.1.3\STM32G071RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SmartTaxi_firmware_ver4.0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

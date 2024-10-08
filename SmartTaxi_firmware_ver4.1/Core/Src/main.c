@@ -27,6 +27,7 @@
 #include "EEPROM.h"
 #include "math.h"
 #include "stdbool.h"
+#include "hmi.h"
 
 /* USER CODE END Includes */
 
@@ -60,7 +61,7 @@
 
 #define ADDR_EEPROM_Write 	0xA0
 #define ADDR_EEPROM_Read 	0xA1
-#define BufferSize 			0x50 //80 bytes
+#define BufferSize 			0x30 //48 bytes
 
 #define RTC_WRITE_ADDR  	0xA2
 #define RTC_READ_ADDR   	0xA3
@@ -73,7 +74,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef hlpuart1;
@@ -92,8 +93,8 @@ TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN PV */
 uint8_t RxFlag = FALSE;
 uint8_t StateChg = FALSE;
-uint8_t RxBuff[12];
-uint8_t TestBuff[12];
+uint8_t RxBuff[12] = {0};
+uint8_t TestBuff[12] = {0};
 
 uint32_t Final_price = 0;
 uint32_t Last_Final_price = 0;
@@ -101,13 +102,9 @@ uint32_t Last_Final_price_x10 = 0;
 uint32_t ex_Addition = 0;
 uint8_t Flag_Display = FALSE;
 uint8_t display_wait = 0;
-uint8_t qr_wait = 0;
 //0712
 uint8_t Flag_added = FALSE;
 uint8_t added_wait = 0;
-//added by Edwin 29/8/24
-uint8_t Flag_payment = FALSE;
-uint8_t payment_wait = 0;
 
 uint32_t Dis = 0;
 uint32_t Last_Dis = 0;
@@ -126,7 +123,7 @@ uint8_t Dur_Min = 0;
 uint8_t Dur_Sec = 0;
 uint8_t rec_ch = 0;
 
-uint8_t value;
+uint8_t value = 0;
 uint8_t txflag = 1;
 
 //status changed flag
@@ -157,98 +154,9 @@ uint16_t min_10;
 uint16_t hou_1;
 uint16_t hou_10;
 
-unsigned char LED_Hired_On[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x04, 0x00, 0x01};
-unsigned char LED_Hired_Off[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x04, 0x00, 0x00};
-unsigned char LED_Stop_On[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x06, 0x00, 0x01};
-unsigned char LED_Stop_Off[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x06, 0x00, 0x00};
-unsigned char LED_Vacant_On[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x08, 0x00, 0x01};
-unsigned char LED_Vacant_Off[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x08, 0x00, 0x00};
-
-unsigned char Plus10_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x0A, 0x00, 0x00};
-unsigned char Plus1_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x0C, 0x00, 0x00};
-unsigned char Print_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x14, 0x00, 0x00};
-unsigned char Clear_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x35, 0x00, 0x00};
-unsigned char Add_Charge_Clear[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00};
-
-const uint8_t Fee[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t Add_Charge[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00};
-const uint8_t Fee_total[] = {0x5A, 0xA5, 0x07, 0x82, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00};
-//test
-const uint8_t Para[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x11, 0x11};
 
 
-const uint8_t RD_Hired[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x04, 0x01};
-const uint8_t RD_Stop[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x06, 0x01};
-const uint8_t RD_Vacant[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x08, 0x01};
 
-const uint8_t RD_Plus10[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x0A, 0x01};
-const uint8_t RD_Plus1[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x0C, 0x01};
-const uint8_t RD_Clear[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x35, 0x01};
-const uint8_t RD_Print[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x14, 0x01};
-//0712
-//const uint8_t RD_extra_btn[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x41, 0x01};
-//unsigned char CLR_extra_btn[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x41, 0x00, 0x00};
-
-const uint8_t RD_Audio[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x37, 0x01};
-const uint8_t Audio_clear[] = {0x5A, 0xA5, 0x05, 0x83, 0x10, 0x37, 0x00, 0x00};
-
-unsigned char Dur_HMS[] = {0x5A, 0xA5, 0x0B, 0x82, 0x10, 0x10, 0x30, 0x30, 0x3A, 0x30, 0x30, 0x3A, 0x30, 0x30};
-unsigned char Dur_HMS_clear[] = {0x5A, 0xA5, 0x0B, 0x82, 0x10, 0x10, 0x30, 0x30, 0x3A, 0x30, 0x30, 0x3A, 0x30, 0x30};
-
-unsigned char hmi_rtc[] = {0x5A, 0xA5, 0x16, 0x82, 0x10, 0x1A, 0x32, 0x30, 0x00, 0x00, 0x2D, 0x00, 0x00, 0x2D, 0x00, 0x00, 0x20, 0x00, 0x00, 0x3A, 0x00, 0x00, 0x3A, 0x00, 0x00};		// 25 byte
-const uint8_t Dis_A[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x0E, 0x00, 0x00, 0x00, 0x00};
-
-//default - plate no. (10 bytes)
-const uint8_t RD_qr[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x39, 0x01};
-unsigned char plate_qr[] = {0x5A, 0xA5, 0x0E, 0x82, 0x10, 0x80, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0xFF, 0xFF};
-unsigned char clr_plate_qr[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x80,  0xFF, 0xFF}; //clear info
-unsigned char etoll_qr[] = {0x5A, 0xA5, 0x3C, 0x82, 0x10, 0x80, 0x68, 0x74, 0x74, 0x70, 0x73, 0x3A, 0x2F, 0x2F, 0x68, 0x6B, 0x65, 0x74, 0x6F, 0x6C, 0x6C, 0x2E, 0x67, 0x6F, 0x76, 0x2E, 0x68, 0x6B, 0x2F, 0x64, 0x72, 0x69, 0x76, 0x65, 0x72, 0x5F, 0x61, 0x70, 0x70, 0x2F, 0x63, 0x68, 0x65, 0x63, 0x6B, 0x5F, 0x69, 0x6E, 0x3F, 0x76, 0x69, 0x64, 0x3D, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0xFF, 0xFF};
-////etoll -> https://hketoll.gov.hk/driver_app/check_in?vid=2264142
-////data length = 0x3C (1+2+47+(7 or 8)+2=59 bytes)
-////htt ... id= [6]~[52]
-////FF FF [53][54] - all 0 				(len=0)
-////(0)2264142 [53][59] - remove 0 		(len=7)
-////xxxxxxxx [53][60] - if no leading 0 (len=8)
-////FFFF [60][61]
-////FFFF [61][62]
-const uint8_t cmd_off[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x04, 0x00, 0x00}; //clear color
-const uint8_t cmd_on[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x04, 0x00, 0x80};
-const uint8_t cmd_bg_green[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x05, 0x3F, 0xF3};
-const uint8_t cmd_content_black[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x06, 0x00, 0x00};
-const uint8_t cmd_bg_white[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x05, 0xFF, 0xFF};
-const uint8_t cmd_content_red[] = {0x5A, 0xA5, 0x05, 0x82, 0x80, 0x06, 0xf0, 0x00};
-
-//test: apas.org -> 0x61 0x70 0x61 0x73 0x2E 0x6F 0x72 0x67 												//payment QR code using apas.org
-unsigned char epay_qr[] = {0x5A, 0xA5, 0x0D, 0x82, 0x10, 0x80, 0x61, 0x70, 0x61, 0x73, 0x2E, 0x6F, 0x72, 0x67, 0xFF, 0xFF};
-//clear RD_qr
-const uint8_t CLR_RD_qr[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x39, 0x00, 0x00};
-
-//define dataDisplay to HMI
-unsigned char total_hmi[] = {0x5A, 0xA5, 0x2B, 0x82, 0x10, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-unsigned char total_detail[] = {0x5A, 0xA5, 0x27, 0x82, 0x10, 0x5C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-//define read today's data //02 - check if cflag = 0
-const uint8_t RD_cdata[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x50, 0x02};
-uint8_t Flag_clearset = FALSE;
-uint8_t all_zero = FALSE;
-unsigned char cdata[4];
-
-const uint8_t RD_cleardata[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x5A, 0x01};
-const uint8_t cdata_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x5A, 0x00, 0x00};
-//HMI cmd
-const uint8_t cmd_close[] = {0x5A, 0xA5, 0x07, 0x82, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00};
-const uint8_t cmd_clear[] = {0x5A, 0xA5, 0x0F, 0x82, 0x10, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-const uint8_t RD_page[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x40, 0x01};
-uint16_t edwin =0;
-const uint8_t Page01[] = {0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x01};
-const uint8_t Page04[] = {0x5A, 0xA5, 0x07, 0x82, 0x00, 0x84, 0x5A, 0x01, 0x00, 0x04};
-const uint8_t page_clear[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x40, 0x00, 0x00};
-
-const uint8_t RD_print_data[] = {0x5A, 0xA5, 0x04, 0x83, 0x10, 0x58, 0x01};
-const uint8_t print_data_clr[] = {0x5A, 0xA5, 0x05, 0x82, 0x10, 0x58, 0x00, 0x00};
-
-//==============================printer==============================
 unsigned char msg01[] = {0xdc, 0x87, 0xcc, 0x96, 0x20, 0x20, 0x20, 0x20, 0x20};
 unsigned char msg03[] = {0xc9, 0xcf, 0xdc, 0x87, 0x20, 0x20, 0x20, 0x20, 0x20};
 unsigned char msg05[] = {0xcf, 0xc2, 0xdc, 0x87, 0x20, 0x20, 0x20, 0x20, 0x20};
@@ -283,11 +191,16 @@ unsigned char cmd[] = {0x1b, 0x33, 0x20, 0x1b, 0x4d, 0x00};
 struct print1 receipt1;
 struct print2 receipt2;
 
-unsigned char plate[14] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,0x20, 0x20, 0x20, 0x20, 0x20};
+unsigned char plate[14] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
 //plate[] = plate_no[] -> eeprom_r()
 unsigned char start[] = {0x00, 0x00, 0x2f, 0x00, 0x00, 0x2f, 0x00, 0x00, 0x20, 0x00, 0x00, 0x3a, 0x30, 0x30};				//d-m-y h:m
 unsigned char end[] = {0x00, 0x00, 0x2f, 0x00, 0x00, 0x2f, 0x00, 0x00, 0x20, 0x00, 0x00, 0x3a, 0x30, 0x30};					//d-m-y h:m
 unsigned char re_stop[] = {0x00, 0x00, 0x2f, 0x00, 0x00, 0x2f, 0x00, 0x00, 0x20, 0x00, 0x00, 0x3a, 0x30, 0x30};				//d-m-y h:m
+//unsigned char total_km[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x2e, 0x00};			//123.4km
+//unsigned char paid_km[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x2e, 0x00};				//123.4km
+//unsigned char paid_min[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x2e, 0x00};			//123.4 minutes
+//unsigned char sub[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x2e, 0x30};					//999.0
+//unsigned char t_fare[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x30, 0x2e, 0x30};					//9999.9
 
 unsigned char total_km[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x2e, 0x30, 0x30};			//123.45km
 unsigned char paid_km[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x2e, 0x30, 0x30};				//123.45km
@@ -306,9 +219,9 @@ uint8_t flag_vs_first = FALSE;
 uint16_t serial = 0;
 uint32_t Dis_x10 = 0;
 uint32_t Final_price_x10 = 0;
-uint32_t fare_km_x100;
-uint32_t fare_min_x100;
-uint32_t Addition_x10;
+uint32_t fare_km_x100 = 0;
+uint32_t fare_min_x100 = 0;
+uint32_t Addition_x10 = 0;
 
 uint8_t Flag_Tbox_Start = TRUE;
 uint8_t Flag_Tbox_Finish = FALSE;
@@ -316,7 +229,7 @@ uint8_t Flag_Tbox_Finish = FALSE;
 //header
 unsigned char zone[] = {0xaa, 0x55};
 unsigned char hd1[] = {0x00, 0x00, 0x10, 0x01, 0x00, 0x06}; 		//6 byte
-unsigned char hd2[] = {0x00, 0x00, 0x10, 0x01, 0x00, 0x1a};			//26 byte data size
+unsigned char hd2[] = {0x00, 0x00, 0x10, 0x01, 0x00, 0x1a};			//26 byte
 
 //tbox_finish
 unsigned char data1[6];
@@ -328,56 +241,43 @@ unsigned char t_finish[36];
 //==============================eeprom==============================
 uint8_t ReadBuffer[BufferSize];
 uint8_t WriteBuffer[BufferSize];
-uint16_t i;
+uint16_t i = 0;
 
 uint8_t Flag_Para_W = FALSE;
 uint8_t Flag_Head = FALSE;
 uint8_t Receiving = FALSE;
 
-//temp
-static uint8_t RxBuffer[80];          //parameter
-static uint16_t RxCount = 0;
+unsigned char ReplyBuffer[16] = {0};
+unsigned char Type[2] = {0};
+unsigned char plate_no[10] = {0};
 
-unsigned char ReplyBuffer[54];
-//DONE: ReplyBuffer -> 2+10+8+12+8+8+3=51 + 3 *'00'
-//new added
-unsigned char Type[2];
-unsigned char plate_no[10];
-unsigned char details[8];
-unsigned char serial_no[12];
-unsigned char HW[8] = {0x48, 0x57, 0x20, 0x35, 0x2E, 0x31,0x2E,0x30};  // not in eeprom as they are fixed
-unsigned char FW[8] = {0x46, 0x57, 0x20, 0x34, 0x2E, 0x32,0x2E,0x30};
-unsigned char effected[3];
-
-uint8_t Flag_test1;
-uint8_t Flag_test2;
-uint8_t Flag_test3;
+uint8_t Flag_test1 = 0;
+uint8_t Flag_test2 = 0;
+uint8_t Flag_test3 = 0;
 
 //==============================rtc==============================
 PCF2129_t RTC_date;
-uint16_t year;
-uint16_t month;
-uint16_t day;
-uint16_t weekday;
-uint16_t hour;
-uint16_t minute;
-uint16_t second;
+uint16_t year = 0;
+uint16_t month = 0;
+uint16_t day = 0;
+uint16_t weekday = 0;
+uint16_t hour = 0;
+uint16_t minute = 0;
+uint16_t second = 0;
 
 utc_t UtcTime;
-uint32_t u32UnixTimeStamp;
+uint32_t u32UnixTimeStamp = 0;
 time_tt stCurrentTime;
 
-uint8_t ctrl_1;
-uint8_t ctrl_2;
-uint8_t ctrl_3;
-uint8_t flag_alarm_clear;
+uint8_t ctrl_1 = 0;
+uint8_t ctrl_2 = 0;
+uint8_t ctrl_3 = 0;
+uint8_t flag_alarm_clear = 0;
 
-uint8_t hh;
-uint8_t mm;
-uint8_t ss;
-uint8_t unlock_hh=1; //Edwin added to calculate the unlock time
-uint8_t unlock_mm=0;
-uint8_t unlock_ss=0;
+uint8_t hh = 0;
+uint8_t mm = 0;
+uint8_t ss = 0;
+
 //==============================flag==============================
 uint8_t Flag_up = TRUE;
 uint8_t Flag_down = FALSE;
@@ -397,75 +297,78 @@ uint32_t Width  = 0;
 uint32_t Is_First_Captured  = 0;
 uint32_t Is_First_Captured_x  = 0;
 
-float Fare_reached;
-float Fare_2km;
-float Fare_200m0;					
-float Fare_200m1;					
-float Fare_200m2;					
-uint32_t Fare_min;					
-uint16_t ck = 1000;					
-uint16_t ck_r;						
-uint16_t Speed_co = 12;				
-uint16_t Speed_max = 150;			
+float Fare_reached = 0;
+float Fare_2km = 0;
+float Fare_200m0 = 0;					//T0 = 2.7
+float Fare_200m1 = 0;					//T1 = 1.7
+float Fare_200m2 = 0;					//T2 = 1.2
+uint32_t Fare_min = 0;					//2700, 2350, 2200
+//uint16_t inverse_k; 				//uint16_t ik = 833;
+uint16_t ck = 1000;					//init value, avoid x/ck = 0
+uint16_t ck_r = 0;						//read from eeprom, car ck
+uint16_t Speed_co = 12;				//Speed_co = 12km/h
+uint16_t Speed_max = 150;			//Speed_max = 150km/h
 
-float Speed;
-float Distance;
-float distance;
-float Last_Distance;
+float Speed = 0;
+//float Speed_x;
+float Distance = 0;
+float distance = 0;
+float Last_Distance = 0;
 
 //uint32_t Last_counter;
-uint32_t counter;
-uint32_t ex_counter;
-uint32_t last_counter;
-uint32_t Pulse_Record;
-uint8_t cnt;
+uint32_t counter = 0;
+uint32_t ex_counter = 0;
+uint32_t last_counter = 0;
+uint32_t Pulse_Record = 0;
+uint8_t cnt = 0;
 
-float Fi;
+float Fi = 0; // = 2.05;
 
-uint32_t Dt;
-uint32_t DtX;
-uint32_t Df;
+uint32_t Dt = 0;
+uint32_t DtX = 0;
+uint32_t Df = 0;
 
-float Fu;
-uint32_t Ft;
-uint32_t Fd;
+//uint32_t Fu;
+float Fu = 0;
+uint32_t Ft = 0;
+uint32_t Fd = 0;
 
-uint8_t Flag_2km;
-uint8_t Flag_2km_c;
+uint8_t Flag_2km = 0;
+//uint8_t Flag_22km;
+uint8_t Flag_2km_c = 0;
 
-float fare;
-float fare_d;
-float Last_fare_d;
-uint32_t fare_d_x10;
-uint32_t fare_d_x100;
-uint32_t Last_fare_d_x100;
+float fare = 0;
+float fare_d = 0;
+float Last_fare_d = 0;
+//float fare_d_x10;
+uint32_t fare_d_x10 = 0;
+uint32_t fare_d_x100 = 0;
+uint32_t Last_fare_d_x100 = 0;
 
-float fare_km;
-float fare_min;
+float fare_km = 0;
+float fare_min = 0;
 
-uint32_t fare_km_x;
-uint32_t fare_min_x;
+uint32_t fare_km_x = 0;
+uint32_t fare_min_x = 0;
 
-int8_t flag_fare_r;
+int8_t flag_fare_r = 0;
 
 //==============================anti-tampering==============================
-uint8_t Flag_Protect = FALSE; //TRUE是鎖錶狀態, FALSE是沒鎖錶
+uint8_t Flag_Protect = FALSE;
 uint8_t Flag_alarm = TRUE;
 uint8_t Flag_set_alarm_rtc = FALSE;
 
-unsigned char cal_min;
-unsigned char cal_sec;
-unsigned char alarm_min;
-unsigned char alarm_sec;
-unsigned char alarm_min_set;
-unsigned char alarm_sec_set;
+unsigned char cal_min = {0};
+unsigned char cal_sec = {0};
+unsigned char alarm_min = {0};
+unsigned char alarm_sec = {0};
+unsigned char alarm_min_set = {0};
+unsigned char alarm_sec_set = {0};
 
-unsigned char unlock_clear[] = {0x5A, 0xA5, 0x09, 0x82, 0x10, 0x32, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
-unsigned char C_Fare_clear[] = {0x5A, 0xA5, 0x04, 0x82, 0x10, 0x30, 0x20};
-unsigned char C_Fare_Min[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-uint8_t Tamper_Counter;
-uint8_t last_pulse;
+
+uint8_t Tamper_Counter = 0;
+uint8_t last_pulse = 0;
 
 int8_t cds = 0;
 int8_t cdm = 0;
@@ -478,55 +381,55 @@ uint8_t cdm_10 = 0;
 uint8_t cdh_10 = 0;
 
 uint32_t speed_d;
-uint8_t speed_a[8];
-uint8_t width_a[8];
+uint8_t speed_a[8] = {0};
+uint8_t width_a[8] = {0};
 
 //==============================total data==============================
-uint8_t dataRead[100];
-uint8_t dataWrite[100];
-uint8_t dataDisplay[40];
+uint8_t dataRead[100] = {0};
+uint8_t dataWrite[100] = {0};
+uint8_t dataDisplay[40] = {0};
 
-uint32_t tkm_d;
-uint32_t pkm_d;
-uint32_t tflag_d;
-uint32_t cflag_d;
-uint32_t tpulse_d;
-uint32_t tfare_d;
-uint32_t tsub_d;
-uint32_t cfare_d;
-uint32_t csub_d;
+uint32_t tkm_d = 0;
+uint32_t pkm_d = 0;
+uint32_t tflag_d = 0;
+uint32_t cflag_d = 0;
+uint32_t tpulse_d = 0;
+uint32_t tfare_d = 0;
+uint32_t tsub_d = 0;
+uint32_t cfare_d = 0;
+uint32_t csub_d = 0;
+//new added
+uint32_t tfare_d_x10 = 0;
+uint32_t tsub_d_x10 = 0;
+uint32_t cfare_d_x10 = 0;
+uint32_t csub_d_x10 = 0;
+uint32_t ttime_d = 0;
+uint32_t ttime_x = 0;
+uint32_t nbtime_d = 0;
+uint32_t jtime_d = 0;
+uint32_t pulses_d = 0;
 
-uint32_t tfare_d_x10;
-uint32_t tsub_d_x10;
-uint32_t cfare_d_x10;
-uint32_t csub_d_x10;
-uint32_t ttime_d;
-uint32_t ttime_x;
-uint32_t nbtime_d;
-uint32_t jtime_d;
-uint32_t pulses_d;
+uint8_t flag_count = 0;
+uint8_t change_count = 0;
+uint16_t ttime_counter = 0;
+uint32_t nbtime_counter = 0;
 
-uint8_t flag_count;
-uint8_t change_count;
-uint16_t ttime_counter;
-uint32_t nbtime_counter;
-
-uint8_t tkm[8];
-uint8_t pkm[8];
-uint8_t tflag[8];
-uint8_t cflag[8];
-uint8_t tpulse[8];
-uint8_t tfare[8];
-uint8_t tsub[8];
-uint8_t cfare[8];
-uint8_t csub[8];
-uint8_t ttime[8];
+uint8_t tkm[8] = {0};
+uint8_t pkm[8] = {0};
+uint8_t tflag[8] = {0};
+uint8_t cflag[8] = {0};
+uint8_t tpulse[8] = {0};
+uint8_t tfare[8] = {0};
+uint8_t tsub[8] = {0};
+uint8_t cfare[8] = {0};
+uint8_t csub[8] = {0};
+uint8_t ttime[8] = {0};
 //also used by SD
-uint8_t nbtime[8];
-uint8_t jtime[8];
-uint8_t pulses[8];
+uint8_t nbtime[8] = {0};
+uint8_t jtime[8] = {0};
+uint8_t pulses[8] = {0};
 
-uint8_t dt[12];
+uint8_t dt[12] = {0};
 
 unsigned char tmsg01[] = {0x31, 0x2e, 0x20, 0xc0, 0xdb, 0xb7, 0x65, 0xbf, 0x82, 0xdf, 0xe4, 0xb9, 0xab, 0xc0, 0xef, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
 unsigned char tmsg02[] = {0x32, 0x2e, 0x20, 0xc0, 0xdb, 0xb7, 0x65, 0xdd, 0x64, 0xbf, 0xcd, 0xb9, 0xab, 0xc0, 0xef, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
@@ -540,6 +443,13 @@ unsigned char tmsg09[] = {0x39, 0x2e, 0x20, 0xAE, 0x94, 0xCC, 0xEC, 0xC0, 0xDB, 
 unsigned char tmsg10[] = {0x31, 0x30, 0x2e, 0xC0, 0xDB, 0xB7, 0x65, 0xDD, 0x64, 0xBF, 0xCD, 0x95, 0x72, 0xE9, 0x67, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
 unsigned char tmsg11[] = {0x31, 0x31, 0x2e, 0xC3, 0x7D, 0xD0, 0x6E, 0x94, 0xB5, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
 
+//unsigned char data01[] = {0x20, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data02[] = {0x20, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data06[] = {0x20, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data07[] = {0x20, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data08[] = {0x20, 0x20, 0x20, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data09[] = {0x20, 0x20, 0x20, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
+//unsigned char data10[] = {0x20, 0x20, 0x20, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30};
 unsigned char data01[] = {0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30, 0x30};
 unsigned char data02[] = {0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2E, 0x30, 0x30};
 unsigned char data03[] = {0x20, 0x20, 0x20, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30};
@@ -556,19 +466,20 @@ unsigned char dtdata[] = {0xB4, 0xF2, 0xD3, 0xA1, 0x95, 0x72, 0xE9, 0x67, 0x3A, 
 
 //==============================spi sd-card==============================
 FATFS fs;  // file system
-FIL fil;
+FIL fil; // File
 FILINFO fno;
-FRESULT fresult;
+FRESULT fresult;  // result
 UINT br, bw;  // File read/write count
 
-char buffer[1024];
+char buffer[1024] = {0};
 
-unsigned char SD_buffer[114]; //SD_buffer[106];
+unsigned char SD_buffer[114] = {0}; //SD_buffer[106];
 
 /**** capacity related *****/
 //FATFS *pfs;
 //DWORD fre_clust;
-uint32_t total, free_space;
+uint32_t total = 0;
+uint32_t free_space = 0;
 
 void send_uart (char *string)
 {
@@ -592,11 +503,14 @@ void clear_buffer (void)
 }
 
 //==============================audio==============================
-unsigned char v_value[9];
-unsigned char result[26];
+unsigned char v_value[9]  = {0};
+unsigned char result[26] = {0};
 
 unsigned char v_can_start[] = {0xAA, 0x1B, 0x10, 0x36, 0x38, 0x30, 0x00, 0x30, 0x00, 0x35, 0x00, 0x35, 0x00, 0x35, 0x00, 0x35, 0x00, 0x36, 0x37, 0x00};
 unsigned char v_cn_start[] = {0xAA, 0x1B, 0x10, 0x39, 0x33, 0x30, 0x00, 0x30, 0x00, 0x4A, 0x00, 0x4A, 0x00, 0x4A, 0x00, 0x4A, 0x00, 0x39, 0x32, 0x00};
+//testing - only letters of plate no.
+//unsigned char v_can_start[] = {0xAA, 0x1B, 0x10, 0x36, 0x38, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x36, 0x37, 0x00};
+//unsigned char v_cn_start[] = {0xAA, 0x1B, 0x10, 0x39, 0x33, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x39, 0x32, 0x00};
 unsigned char v_en_start[] = {0xAA, 0x1B, 0x10, 0x33, 0x36, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x30, 0x00, 0x33, 0x35, 0x00};
 
 unsigned char v_can_end[32] = {0xAA, 0x1B, 0x00, 0x36, 0x39};
@@ -616,10 +530,6 @@ uint8_t test_f;
 uint8_t flag_tester;
 uint8_t flag_encoder;
 uint8_t flag_sp = 1;
-
-//==============================test==============================
-uint8_t len_plate;
-uint8_t len_detail;
 
 /* USER CODE END PD */
 
@@ -672,6 +582,8 @@ static void MX_NVIC_Init(void);
 /* USER CODE BEGIN 0 */
 void USER_UART_IDLECallback(UART_HandleTypeDef *huart)
 {
+	// 5A A5 05 82 5420 0064
+	// 5A A5帧头 05 数据长度 82写指令 83读指令
     HAL_UART_DMAStop(&huart1);
     uint8_t data_length  = BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
 
@@ -715,8 +627,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-//	static uint8_t RxBuffer[80];
-//	static uint16_t RxCount = 0;
+	static uint8_t RxBuffer[48];
+	static uint16_t RxCount = 0;
+
+	memcpy(ReplyBuffer, Type, sizeof(unsigned char)*2);
+	memcpy(ReplyBuffer+2, plate_no, sizeof(unsigned char)*10);
 
 	if(huart->Instance == USART3)
 	{
@@ -727,9 +642,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				if((RxCount >= 46) && (rec_ch == 0xFF))
 				{
 					RxCount = 0;
-					memset(WriteBuffer,0,80);
-					memcpy(WriteBuffer,RxBuffer,80);
-					memset(RxBuffer,0,80);
+					memset(WriteBuffer,0,48);
+					memcpy(WriteBuffer,RxBuffer,48);
+					memset(RxBuffer,0,48);
 					Flag_Para_W = TRUE;
 					Flag_Head = FALSE;
 					Receiving = FALSE;
@@ -751,16 +666,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				{
 					//header - 0xAA 0xCC: start reply taxi type & plate no.
 					Receiving = FALSE;
-					HAL_UART_Transmit(&huart3, ReplyBuffer, 54, 0xff);            //ReplyBuffer : Parameter Software byte length
+					HAL_UART_Transmit(&huart3, ReplyBuffer, 16, 0xff);
 				}
-				//TODO: check brand new
-//				else if(rec_ch == 0xDD)
-//				{
-//					Receiving = FALSE;
-//					EEPROM_PageErase(3);     // 1 is parameter , 3 is Operating data
-//					unsigned char ack[1] = {0x06};
-//					HAL_UART_Transmit(&huart3, ack, 1, 0x02);     //send to computer
-//				}
 				else
 				{
 					Receiving = FALSE;
@@ -849,7 +756,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 int main(void)
 {
 
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -860,7 +766,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+//  	HAL_Delay(2000); //Proposed to test the electricity.
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -892,7 +798,12 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
-  HAL_UART_Receive_DMA(&huart1, (uint8_t*)receive_buff, 64);
+
+  /*eric*/
+  //HAL_UART_Receive_DMA(&huart1, (uint8_t*)receive_buff, 64);
+  HAL_UART_Receive_DMA(&huart1, receive_buff, 64);
+  /*eric*/
+
   HAL_UART_Receive_IT(&huart3, &rec_ch, 1);
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
@@ -900,15 +811,15 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
   HAL_TIM_Base_Start_IT(&htim3);
 
-  HAL_Delay(200);   //Edwin: try to change it from 200 (2ms) to 10000 (10sec) to delay the software loading
-                                            //Load all variable when turn on the taximeter
-  PCF2129_Init(hi2c1, RTC_WRITE_ADDR);
-//  rtc_set();
+  HAL_Delay(200); //changed by Edwin from 200 to 10000
 
 //  EEPROM_PageErase(3);
 //  eeprom_w();
 //  eeprom_check();
   eeprom_r();
+  PCF2129_Init(hi2c1, RTC_WRITE_ADDR);
+//  rtc_set();
+
 
   //Mounting SD card
   fresult = f_mount(&fs, "/", 1);
@@ -923,56 +834,16 @@ int main(void)
   // clearing buffer to show that result obtained is from the file
   clear_buffer();
 
-
-  //{0x5A, 0xA5, 0x24, 0x82, 0x10, 0x5C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-  total_detail[6] = HW[0];
-  total_detail[7] = HW[1];
-  total_detail[8] = HW[2];
-  total_detail[9] = HW[3];
-  total_detail[10] = HW[4];
-  total_detail[11] = HW[5];
-  total_detail[12] = HW[6];
-  total_detail[13] = HW[7];
-
-  total_detail[14] = FW[0];
-  total_detail[15] = FW[1];
-  total_detail[16] = FW[2];
-  total_detail[17] = FW[3];
-  total_detail[18] = FW[4];
-  total_detail[19] = FW[5];
-  total_detail[20] = FW[6];
-  total_detail[21] = FW[7];
-
-  total_detail[22] = serial_no[0];
-  total_detail[23] = serial_no[1];
-  total_detail[24] = serial_no[2];
-  total_detail[25] = serial_no[3];
-  total_detail[26] = serial_no[4];
-  total_detail[27] = serial_no[5];
-  total_detail[28] = serial_no[6];
-  total_detail[29] = serial_no[7];
-  total_detail[30] = serial_no[8];
-  total_detail[31] = serial_no[9];
-  total_detail[32] = serial_no[10];
-  total_detail[33] = serial_no[11];
-
-  //a_buffer[3] = fare effective date[0 to 2]
-
-//  unsigned char d_buffer[6];
-//  BCD2ASC(d_buffer,effected,6);
-//  total_detail[34] = d_buffer[0];
-//  total_detail[35] = d_buffer[1];
-//  total_detail[37] = d_buffer[2];
-//  total_detail[38] = d_buffer[3];
-//  total_detail[40] = d_buffer[4];
-//  total_detail[41] = d_buffer[5];
-
   Voice_init();
 
 //  E_read();
 
-  SD_buffer[0] = plate_qr[6]; //SD card only support 6 char
+//0x20 space
+//0x41 A
+//0X30 '0'
+// 0X31 '1'
+
+  SD_buffer[0] = plate_qr[6];
   SD_buffer[1] = plate_qr[7];
   SD_buffer[2] = plate_qr[8];
   SD_buffer[3] = plate_qr[9];
@@ -980,14 +851,14 @@ int main(void)
   SD_buffer[5] = plate_qr[11];
   SD_buffer[6] = 0x20;
 
-  SD_buffer[7] = 0x41;  //A   //SD card only support A00001
-  SD_buffer[8] = 0x30;  //0
-  SD_buffer[9] = 0x30;  //0
-  SD_buffer[10] = 0x30; //0
-  SD_buffer[11] = 0x30; //0
-  SD_buffer[12] = 0x31; //1
+  SD_buffer[7] = 0x41;
+  SD_buffer[8] = 0x30;
+  SD_buffer[9] = 0x30;
+  SD_buffer[10] = 0x30;
+  SD_buffer[11] = 0x30;
+  SD_buffer[12] = 0x31;
   SD_buffer[13] = 0x20;
-                                            //All variable are loaded when turn on the taximeter
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -996,67 +867,31 @@ int main(void)
   {
 	  if (test_f)
 	  {
-		  if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1) == 0)                     //write para
+		  if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1) == 0)
 		  {
-			  if(Flag_Para_W) //parameter
+			  if(Flag_Para_W)
 			  {
 				  Flag_Para_W = FALSE;
 				  eeprom_w();
 				  eeprom_check();
 				  eeprom_r();
 				  rtc_set();
-				  memset(ReplyBuffer, 0, 54);
+				  memset(ReplyBuffer, 0, 16);
 				  unsigned char ok[1] = {0xDD};
 				  HAL_UART_Transmit(&huart3, ok, 1, 0x02);
 			  }
-			  memcpy(ReplyBuffer, Type, sizeof(unsigned char)*2);
-			  memcpy(ReplyBuffer+2, plate_no, sizeof(unsigned char)*10);
-			  memcpy(ReplyBuffer+12, details, sizeof(unsigned char)*8);
-			  memcpy(ReplyBuffer+20, serial_no, sizeof(unsigned char)*12);
-			  memcpy(ReplyBuffer+32, HW, sizeof(unsigned char)*8);
-			  memcpy(ReplyBuffer+40, FW, sizeof(unsigned char)*8);
-			  memcpy(ReplyBuffer+48, effected, sizeof(unsigned char)*3);
 			  time_update();
-			  HAL_UART_Transmit(&huart1, (uint8_t *) plate_qr, 18, 0x1C);
+			  HAL_UART_Transmit(&huart1, (uint8_t *) plate_qr, 14, 0x1C);
 		  }
-		  else if(Flag_Protect)			 //鎖錶狀態
+		  else if(Flag_Protect)
 		  {
-
-			  //如果鎖錶超過一小時，判定不正常鎖錶並直接解鎖 Edwin
-				stCurrentTime.hour = bcdToDec(RTC_date.date.hh);
-				stCurrentTime.minute = bcdToDec(RTC_date.date.mm);
-				stCurrentTime.second = bcdToDec(RTC_date.date.ss);
-
-				DebugLog(); // Debug record every 3 sec
-
-
-				u32UnixTimeStamp = utcToUnix(&stCurrentTime);
-				unlock_hh=bcdToDec(PCF2129_read(PCF2129_REG_ALARM_HOUR));
-				unlock_mm=bcdToDec(PCF2129_read(PCF2129_REG_ALARM_MINUTE));
-				unlock_ss=bcdToDec(PCF2129_read(PCF2129_REG_ALARM_SECOND));
-
-				if (unlock_hh==0)  //處理跨日鎖錶
-				{ unlock_hh+=24;
-				}
-
-				if (unlock_hh>24||unlock_mm>59||unlock_ss>59) //阻止不合理時間鎖錶
-				{
-					Unlock_Meter();
-				}
-				else
-				{
-				  //anti-tamper process
-				  Anti_Tamper_Handle();    //鎖錶狀態
-				}
-				//				else if ((stCurrentTime.hour +1)<unlock_hh)   //鎖錶不會超過兩小時 <--發現BUG 此功能優先度高於改寫，會導致無法鎖錶
-				//				{
-				//					Unlock_Meter();
-				//				}
+			  DebugLog(); // Debug record every 3 sec
+			  //anti-tamper process
+			  Anti_Tamper_Handle();
 		  }
 		  else
 		  {
-				DebugLog();			// Debug record every 3 sec
-
+			  DebugLog(); // Debug record every 3 sec
 			  //normal process
 			  Status_Check();
 		  }
@@ -1717,7 +1552,7 @@ void Status_Check(void)
 {
 	time_update();
 
-	HAL_UART_Transmit(&huart1, total_hmi, 46, 0x0E);           //huart1 means the HMI LCD screen address
+	HAL_UART_Transmit(&huart1, (uint8_t *) plate_qr, 14, 0x1C);
 	HAL_Delay(1);
 
 	HAL_UART_Transmit(&huart1, unlock_clear, 12, 0x20);
@@ -1780,97 +1615,6 @@ void Status_Check(void)
 		memset(RxBuff,0,12);
 	}
 
-//	HAL_UART_Transmit(&huart1, (uint8_t *) RD_page, 7, 0x0E);                      //right top corner shift page by Chris
-//	HAL_Delay(2);
-//	if(RxFlag)
-//	{
-//		RxFlag = FALSE;
-//		if(RxBuff[8] == 0x01)
-//		{
-//			//HAL_UART_Transmit(&huart1, total_hmi, 46, 0x0E);
-//			HAL_UART_Transmit(&huart1, (uint8_t *)Page01, 10, 0x0E);
-//
-//			E_read();
-//			HAL_UART_Transmit(&huart1, (uint8_t *) page_clear, 8, 0x0E);
-//		}
-//		memset(RxBuff,0,12);
-//	}
-
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_print_data, 7, 0x0E);
-	HAL_Delay(2);
-	if(RxFlag)
-	{
-		RxFlag = FALSE;
-		if(RxBuff[8] == 0x01)
-		{
-
-			//print operational data
-			HAL_UART_Transmit(&huart1, (uint8_t *) print_data_clr, 8, 0x0E);
-			printer_e();
-		}
-		memset(RxBuff,0,12);
-	}
-
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_cleardata, 7, 0x0E);
-	HAL_Delay(2);
-	if(RxFlag)                                    // everyday operating data clear
-	{
-		RxFlag = FALSE;
-		if(RxBuff[8] == 0x01)
-		{
-			cflag_d = 0;
-			cfare_d = 0;
-			csub_d = 0;
-
-			cflag[0] = 0x30;
-			cflag[1] = 0x30;
-			cflag[2] = 0x30;
-			cflag[3] = 0x30;
-			cflag[4] = 0x30;
-			cflag[5] = 0x30;
-			cflag[6] = 0x30;
-			cflag[7] = 0x30;
-
-			cfare[0] = 0x30;
-			cfare[1] = 0x30;
-			cfare[2] = 0x30;
-			cfare[3] = 0x30;
-			cfare[4] = 0x30;
-			cfare[5] = 0x30;
-			cfare[6] = 0x30;
-			cfare[7] = 0x30;
-
-			csub[0] = 0x30;
-			csub[1] = 0x30;
-			csub[2] = 0x30;
-			csub[3] = 0x30;
-			csub[4] = 0x30;
-			csub[5] = 0x30;
-			csub[6] = 0x30;
-			csub[7] = 0x30;
-
-			E_write();
-
-			total_hmi[34] = 0x00;
-			total_hmi[35] = 0x00;
-			total_hmi[36] = 0x00;
-			total_hmi[37] = 0x00;
-			total_hmi[38] = 0x00;
-			total_hmi[39] = 0x00;
-			total_hmi[40] = 0x00;
-			total_hmi[41] = 0x00;
-			total_hmi[42] = 0x00;
-			total_hmi[43] = 0x00;
-			total_hmi[44] = 0x00;
-			total_hmi[45] = 0x00;
-
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_clear, 18, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_close, 10, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cdata_clear, 8, 0x0E);
-		}
-		memset(RxBuff,0,12);
-	}
-
 	if (Flag_V && Flag_H)
 	{
 		Flag_V2H = TRUE;
@@ -1891,13 +1635,14 @@ void Status_Check(void)
 	}
 
 	ex_counter = counter;
+//	cnt += 1;
 
 	if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9) == 1)
 	{
 		//pc9 = 0, encoder
 		//pc9 = 1, tester/not connect
-		flag_tester = 1;//tester
-		flag_encoder = 0;//car
+		flag_tester = 1;
+		flag_encoder = 0;
 		cnt += 1;
 	}
 	else
@@ -1943,29 +1688,6 @@ void Status_Check(void)
 		Flag_S2V = FALSE;
 	}
 
-	//1. read the button
-	//2. check which state it is
-	//3. page swipe or qr code switch or extras add on
-//	HAL_UART_Transmit(&huart1, (uint8_t *) RD_qr, 7, 0x0E);
-//	HAL_Delay(2);
-//	if (RxFlag)
-//	{
-//		RxFlag = FALSE;
-//		if(RxBuff[8] == 0x01)
-//		{
-//			HAL_UART_Transmit(&huart1, etoll_qr, 63, 0x1C);
-//			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_on, 8, 0x0E);
-//			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_bg_green, 8, 0x0E);
-//		}
-//		else
-//		{
-//			HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);
-//			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E);
-//		}
-//		memset(RxBuff,0,12);
-//	}
-
-	//States Process
 	if (Drv_state == S_HIRED)
 	{
 		HMI_Hired_W();
@@ -2025,29 +1747,28 @@ void HMI_Hired_W(void)
 	Last_Dis = 0;
 	Last_fare_d_x100 = 0;
 
-	HAL_UART_Transmit(&huart1, (uint8_t *) Print_clear, 8, 0x10);// not allow user to print during hired
+	HAL_UART_Transmit(&huart1, (uint8_t *) Print_clear, 8, 0x10);
+	HAL_UART_Transmit(&huart1,CLR_extra_btn,8,0x0E);
 
-	HAL_UART_Transmit(&huart1, CLR_RD_qr, 8, 0x1C);     // not allow user to change QR code
-	HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);     //Plate QR code,  need to show it during driving?
-//	HAL_UART_Transmit(&huart1, clr_plate_qr, 8, 0x1C);  // clear QR code
-	HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E);
-	HAL_UART_Transmit(&huart1,page_clear,8,0x0E);
+	Fare_Calculation();
 
-	Fare_Calculation();                                 //calculated all the things in taxi
-
-	fare_d_x10 = (int)(fare_d * 10 + 0.5);               //show to HMI only (fare)
+	fare_d_x10 = (int)(fare_d * 10 + 0.5);
 	//display limit - total fare 9999.9, sub 999.0, distance 999.9, duration 99:59:59
 	if(fare_d_x10 >= 99999)
 	{
 		fare_d_x10 = 99999;
 	}
 	fare_d_x100 = fare_d_x10 * 10;
+//	Long_to_byte(fare_d_x10, temp_array);
 	Long_to_byte(fare_d_x100, temp_array);
 	HMI_Command(Fee,temp_array,10);
+	//send fare_d_x100 to Fee_dup & Fee_total, no extra add on
+//	HMI_Command(Fee_dup, temp_array, 10);
+//	HMI_Command(Fee_total, temp_array, 10);
 
 	extras_rd();
 
-	//distance display                                    //show to HMI only (distance)
+	//distance display
 	Dis = (int)(Distance*100); // + 0.5);
 	if(Dis >= 99999)
 	{
@@ -2057,14 +1778,14 @@ void HMI_Hired_W(void)
 	HMI_Command(Dis_A,temp_array,10);
 
 	//duration display
-//	Dur_hms_cal();                                            // Time need to change
+	Dur_hms_cal();
 
 	//audio start
 	if ((Flag_Audio_start==1) || (Flag_btn_changed==1))
 	{
-		Flag_Audio_start = 0;
-		Flag_Audio_end = 1;
-		Flag_btn_changed = 0;
+		Flag_Audio_start = 0; //false; //FALSE;
+		Flag_Audio_end = 1; //true; //TRUE;
+		Flag_btn_changed = 0; //false; //FALSE;
 
 		switch (btn_value)
 		{
@@ -2083,7 +1804,7 @@ void HMI_Hired_W(void)
 		}
 	}
 
-	//record start time for printer to print
+	//record printer start time
 	if(Flag_Printer_Start)
 	{
 		Flag_Printer_Start = FALSE;
@@ -2101,7 +1822,7 @@ void HMI_Hired_W(void)
 		start[13] = hmi_rtc[21];
 	}
 
-	//T-box transfer pick-up time (transfer only one time, Flag_Tbox_Start changed in S_to_V status)
+	//transfer pick-up time (transfer only one time, Flag_Tbox_Start changed in S_to_V status)
 	if(Flag_Tbox_Start)
 	{
 		Flag_Tbox_Start = FALSE;
@@ -2111,18 +1832,18 @@ void HMI_Hired_W(void)
 		E_read();
 		//non business time
 		nbtime_d = ((nbtime_counter / 60.0)* 1000) / 10; //changed
-		nbtime[7] = (nbtime_d /1 % 10) + 0x30;
-		nbtime[6] = (nbtime_d /10 % 10) + 0x30;
-		nbtime[5] = (nbtime_d /100 % 10) + 0x30;
-		nbtime[4] = (nbtime_d /1000 % 10) + 0x30;
-		nbtime[3] = (nbtime_d /10000 % 10) + 0x30;
-		nbtime[2] = (nbtime_d /10000 % 10) + 0x30;
+		nbtime[7] = (nbtime_d /1) % 10 + 0x30;
+		nbtime[6] = (nbtime_d /10) % 10 + 0x30;
+		nbtime[5] = (nbtime_d /100) % 10 + 0x30;
+		nbtime[4] = (nbtime_d /1000) % 10 + 0x30;
+		nbtime[3] = (nbtime_d /10000) % 10 + 0x30;
+		nbtime[2] = (nbtime_d /10000) % 10 + 0x30;
 
 		if (nbtime[2] == 0x30)
-			SD_buffer[82] = 0x20;                         //SD Card inside Tbox function , record only
+			SD_buffer[82] = 0x20;
 		else
-			SD_buffer[82] = nbtime[2];    //nb time = non business time
-		if (nbtime[3] == 0x30)				//if 0, write space.
+			SD_buffer[82] = nbtime[2];
+		if (nbtime[3] == 0x30)
 			SD_buffer[83] = 0x20;
 		else
 			SD_buffer[83] = nbtime[3];
@@ -2132,7 +1853,7 @@ void HMI_Hired_W(void)
 			SD_buffer[84] = nbtime[4];
 
 		SD_buffer[85] = nbtime[5];
-		SD_buffer[86] = 0x2E;				//.
+		SD_buffer[86] = 0x2E;
 		SD_buffer[87] = nbtime[6];
 		SD_buffer[88] = nbtime[7];
 		SD_buffer[89] = 0x20;
@@ -2160,7 +1881,7 @@ void HMI_Hired_W(void)
 		SD_buffer[32] = hmi_rtc[24];
 		SD_buffer[33] = 0x20;
 	}
-	Flag_Control_Down();                                          //fall flag
+	Flag_Control_Down();
 	flag_sp = 0;
 	flag_vs = 1;
 	Flag_End_Record = TRUE;
@@ -2179,10 +1900,6 @@ void HMI_Stop_W(void)
 	HAL_UART_Transmit(&huart1, (uint8_t *) LED_Vacant_Off, 8, 0x10);
 	HAL_Delay(1);
 
-//	HAL_UART_Transmit(&huart1, CLR_RD_qr, 8, 0x1C);
-//	HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);
-//	HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E);
-
 	Fare_Calculation();
 
 	fare_d_x10 = (int)(fare_d * 10 + 0.5);
@@ -2193,6 +1910,20 @@ void HMI_Stop_W(void)
 	}
 	fare_d_x100 = fare_d_x10 * 10;
 	Long_to_byte(fare_d_x100, temp_array);
+	//bug: if addition != 0, fare will be not updated
+//	if (Addition == 0)
+//	{
+//		HMI_Command(Fee,temp_array,10);
+//	}
+	//0702 !!! test !!!
+//	HMI_Command(Fee,temp_array,10);
+
+	//update when fare changed
+//	if (Last_fare_d != fare_d)
+//	{
+//		HMI_Command(Fee,temp_array,10);
+//		HMI_Command(Fee_dup,temp_array,10);
+//	}
 
 	Dis = (int)(Distance*100); // + 0.5);
 	if(Dis >= 99999)
@@ -2202,7 +1933,7 @@ void HMI_Stop_W(void)
 	Long_to_byte(Dis, temp_array);
 	HMI_Command(Dis_A,temp_array,10);
 
-//	Dur_hms_cal();                                                     //Accumulative Time
+	Dur_hms_cal();
 
 	//record printer start time
 	if(Flag_Printer_Start)
@@ -2250,6 +1981,8 @@ void HMI_Stop_W(void)
 		Final_price_x10 = Final_price * 10; //for display (4 decimal+2 digits)
 		Long_to_byte(Final_price_x10,temp_array);
 //		HMI_Command(Fee,temp_array,10);
+		//send Fee (Final_price_x100) to 0x4000 for holding preview
+//		HMI_Command(Fee_total,temp_array,10);
 		Flag_Addition_Add = FALSE;
 	}
 
@@ -2260,26 +1993,28 @@ void HMI_Stop_W(void)
 		Final_price_x10 = Final_price * 10; //for display (4 decimal+2 digits)
 		Long_to_byte(Final_price_x10,temp_array);
 //		HMI_Command(Fee,temp_array,10);
+		//send Fee (Final_price_x100) to 0x4000 for holding preview
+//		HMI_Command(Fee_total,temp_array,10);
 		Flag_Addition_F = FALSE;
 	}
 
-	//add on (EXTRAS btn) check:
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_page, 7, 0x0E);       // read the value of '0' button
+	//Flag_Display check:
+	HAL_UART_Transmit(&huart1, (uint8_t *) RD_extra_btn, 7, 0x0E);
 	HAL_Delay(2);
 	if(RxFlag)
 	{
 		RxFlag = FALSE;
-		if (RxBuff[8] == 0x01 && Flag_added == TRUE)                 //button value is 1
+		if (RxBuff[8] == 0x01 && Flag_added == TRUE)
 		{
-			added_wait = 0;                                   //fare added wait 5 sec
+			added_wait = 0;
 			Flag_added = FALSE;
-			HAL_UART_Transmit(&huart1,page_clear,8,0x0E);              //set value of '0' to 0.
+			HAL_UART_Transmit(&huart1,CLR_extra_btn,8,0x0E);
 		}
 		else if(RxBuff[8] == 0x01)
 		{
 			added_wait++;
 			Flag_added = TRUE;
-			HAL_UART_Transmit(&huart1,page_clear,8,0x0E);
+			HAL_UART_Transmit(&huart1,CLR_extra_btn,8,0x0E);
 		}
 	}
 	else
@@ -2297,18 +2032,10 @@ void HMI_Stop_W(void)
 		Long_to_byte(add_clr, temp_array);
 		HMI_Command(Add_Charge, temp_array, 10);
 
-//		//show e-payment qr code
-//		HAL_UART_Transmit(&huart1, epay_qr, 16, 0x1C);
-//		HAL_UART_Transmit(&huart1, (uint8_t *) cmd_on, 8, 0x0E);
-//		HAL_UART_Transmit(&huart1, (uint8_t *) cmd_bg_white, 8, 0x0E);
-//		HAL_UART_Transmit(&huart1, (uint8_t *) cmd_content_red, 8, 0x0E);
-
-
 		if(added_wait != 0)
-
 		{
 			added_wait++;
-			//added 5s
+			//added 10s
 			if(added_wait >= 5)
 			{
 				Flag_added = FALSE;
@@ -2318,51 +2045,25 @@ void HMI_Stop_W(void)
 	}
 	else
 	{
-
 		Long_to_byte(fare_d_x100, temp_array);
 		HMI_Command(Fee,temp_array,10);
 
 		Long_to_byte(Addition,temp_array);
 		HMI_Command(Add_Charge,temp_array,10);
-
-
-		if(Flag_payment) //Added by Edwin
-		{
-			if (payment_wait!=0)
-			{
-				payment_wait++;
-				if(payment_wait>=30){  //show the red payment QR code for 30 seconds
-					Flag_payment=FALSE;
-					payment_wait=0;
-					//close e-payment qr code
-					HAL_UART_Transmit(&huart1, CLR_RD_qr, 8, 0x1C);       //Show car plate QR code
-					HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);       //Show plate_QR when stopped
-//					HAL_UART_Transmit(&huart1, clr_plate_qr, 8, 0x1C);  // clear QR code text
-					HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E); //off QR code
-									}
-			}
-		}//Added by Edwin
-		else{
-			//close e-payment qr code
-			HAL_UART_Transmit(&huart1, CLR_RD_qr, 8, 0x1C);       //Show car plate QR code
-			HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);       //Show plate_QR when stopped
-//			HAL_UART_Transmit(&huart1, clr_plate_qr, 8, 0x1C);  // clear QR code text
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E); //off QR code
-		}
 	}
 
 	//cpy total_km
 	//123.45 - default 0.00
-	total_km[13] = (Dis / 1 % 10) + 0x30;
-	total_km[12] = (Dis / 10 % 10) + 0x30;
-	total_km[10] = (Dis / 100 % 10) + 0x30;
+	total_km[13] = (Dis / 1) % 10 + 0x30;
+	total_km[12] = (Dis / 10) % 10 + 0x30;
+	total_km[10] = (Dis / 100) % 10 + 0x30;
 
-	if ((Dis / 10000 % 10) == 0 && (Dis / 1000 % 10) == 0)
+	if ((Dis / 10000) % 10 == 0 && (Dis / 1000) % 10 == 0)
 	{
 		total_km[9] = 0x20;
 		total_km[8] = 0x20;
 	}
-	else if ((Dis / 10000 % 10) == 0)
+	else if ((Dis / 10000) % 10 == 0)
 	{
 		total_km[9] = (Dis / 1000 % 10) + 0x30;
 		total_km[8] = 0x20;
@@ -2376,47 +2077,47 @@ void HMI_Stop_W(void)
 	//cpy paid_km 9, 10, 11, 13
 	//default: paid_km 123.45 (8,9,10,12,13)
 	fare_km_x = (int)(fare_km*100);
-	paid_km[13] = (fare_km_x /1 % 10) + 0x30;
-	paid_km[12] = (fare_km_x /10 % 10) + 0x30;
-	paid_km[10] = (fare_km_x /100 % 10) + 0x30;
+	paid_km[13] = (fare_km_x /1) % 10 + 0x30;
+	paid_km[12] = (fare_km_x /10) % 10 + 0x30;
+	paid_km[10] = (fare_km_x /100) % 10 + 0x30;
 
-	if((fare_km_x / 10000 % 10) == 0 && (fare_km_x / 1000 % 10) == 0)
+	if((fare_km_x / 10000) % 10 == 0 && (fare_km_x / 1000) % 10 == 0)
 	{
 		paid_km[9] = 0x20;
 		paid_km[8] = 0x20;
 	}
-	else if((fare_km_x / 10000 % 10) == 0)
+	else if((fare_km_x / 10000) % 10 == 0)
 	{
-		paid_km[9] =  (fare_km_x / 1000 % 10) + 0x30;
+		paid_km[9] =  (fare_km_x / 1000) % 10 + 0x30;
 		paid_km[8] = 0x20;
 	}
 	else
 	{
-		paid_km[9] =  (fare_km_x / 1000 % 10) + 0x30;
-		paid_km[8] =  (fare_km_x / 10000 % 10) + 0x30;
+		paid_km[9] =  (fare_km_x / 1000) % 10 + 0x30;
+		paid_km[8] =  (fare_km_x / 10000) % 10 + 0x30;
 	}
 
 	//cpy paid_min 9, 10, 11, 13
 	//default: paid_min 123.45 (8,9,10,12,13)
 	fare_min_x = (fare_min * 1000) / 10;
-	paid_min[13] = (fare_min_x /1 % 10) + 0x30;
-	paid_min[12] = (fare_min_x /10 % 10) + 0x30;
-	paid_min[10] = (fare_min_x /100 % 10) + 0x30;
+	paid_min[13] = (fare_min_x /1) % 10 + 0x30;
+	paid_min[12] = (fare_min_x /10) % 10 + 0x30;
+	paid_min[10] = (fare_min_x /100) % 10 + 0x30;
 
-	if((fare_min_x / 10000 % 10) == 0 && (fare_min_x / 1000 % 10) == 0)
+	if((fare_min_x / 10000) % 10 == 0 && (fare_min_x / 1000) % 10 == 0)
 	{
 		paid_min[9] = 0x20;
 		paid_min[8] = 0x20;
 	}
-	else if((fare_min_x / 10000 % 10) == 0)
+	else if((fare_min_x / 10000) % 10 == 0)
 	{
-		paid_min[9] =  (fare_min_x / 1000 % 10) + 0x30;
+		paid_min[9] =  (fare_min_x / 1000) % 10 + 0x30;
 		paid_min[8] = 0x20;
 	}
 	else
 	{
-		paid_min[9] =  (fare_min_x / 1000 % 10) + 0x30;
-		paid_min[8] =  (fare_min_x / 10000 % 10) + 0x30;
+		paid_min[9] =  (fare_min_x / 1000) % 10 + 0x30;
+		paid_min[8] =  (fare_min_x / 10000) % 10 + 0x30;
 	}
 
 	if (Addition == 0)
@@ -2481,25 +2182,25 @@ void HMI_Stop_W(void)
 	SD_buffer[104] = 0x20;
 
 	//cpy fare(without sub) //new add for sd_card
-	if ((fare_d_x10 /10000 % 10) == 0 && (fare_d_x10 /1000 % 10) == 0)
+	if ((fare_d_x10 /10000) % 10 == 0 && (fare_d_x10 /1000) % 10 == 0)
 	{
 		SD_buffer[90] = 0x20;
 		SD_buffer[91] = 0x20;
 	}
-	else if((fare_d_x10 /10000 % 10) == 0)
+	else if((fare_d_x10 /10000) % 10 == 0)
 	{
 		SD_buffer[90] = 0x20;
-		SD_buffer[91] = (fare_d_x10 /1000 % 10) + 0x30;
+		SD_buffer[91] = (fare_d_x10 /1000) % 10 + 0x30;
 	}
 	else
 	{
-		SD_buffer[90] = (fare_d_x10 /10000 % 10) + 0x30;
-		SD_buffer[91] = (fare_d_x10 /1000 % 10) + 0x30;
+		SD_buffer[90] = (fare_d_x10 /10000) % 10 + 0x30;
+		SD_buffer[91] = (fare_d_x10 /1000) % 10 + 0x30;
 	}
-	SD_buffer[92] = (fare_d_x10 /100 % 10) + 0x30;
-	SD_buffer[93] = (fare_d_x10 /10 % 10) + 0x30;
+	SD_buffer[92] = (fare_d_x10 /100) % 10 + 0x30;
+	SD_buffer[93] = (fare_d_x10 /10) % 10 + 0x30;
 	SD_buffer[94] = 0x2E;
-	SD_buffer[95] = (fare_d_x10 /1 % 10) + 0x30;
+	SD_buffer[95] = (fare_d_x10 /1) % 10 + 0x30;
 	SD_buffer[96] = 0x30;
 	SD_buffer[97] = 0x20;
 
@@ -2512,11 +2213,11 @@ void HMI_Stop_W(void)
 	}
 
 	t_fare[12] = 0x30;
-	t_fare[11] = (Final_price /1 % 10) + 0x30;
-	t_fare[9] = (Final_price /10 % 10) + 0x30;
-	t_fare[8] = (Final_price /100 % 10) + 0x30;
+	t_fare[11] = (Final_price /1) % 10 + 0x30;
+	t_fare[9] = (Final_price /10) % 10 + 0x30;
+	t_fare[8] = (Final_price /100) % 10 + 0x30;
 
-	if ((Final_price /10000 % 10) == 0 && (Final_price /1000 % 10) == 0)
+	if ((Final_price /10000) % 10 == 0 && (Final_price /1000) % 10 == 0)
 	{
 //		t_fare[8] = 0x24;
 //		t_fare[7] = 0x4b;
@@ -2529,13 +2230,13 @@ void HMI_Stop_W(void)
 		SD_buffer[105] = 0x20;
 		SD_buffer[106] = 0x20;
 	}
-	else if((Final_price /10000 % 10) == 0)
+	else if((Final_price /10000) % 10 == 0)
 	{
 //		t_fare[8] = (Final_price /1000 % 10) + 0x30;
 //		t_fare[7] = 0x24;
 //		t_fare[6] = 0x4b;
 //		t_fare[5] = 0x48;
-		t_fare[7] = (Final_price /1000 % 10) + 0x30;
+		t_fare[7] = (Final_price /1000) % 10 + 0x30;
 		t_fare[6] = 0x24;
 		t_fare[5] = 0x4b;
 		t_fare[4] = 0x48;
@@ -2550,8 +2251,8 @@ void HMI_Stop_W(void)
 //		t_fare[6] = 0x24;
 //		t_fare[5] = 0x4b;
 //		t_fare[4] = 0x48;
-		t_fare[7] = (Final_price /1000 % 10) + 0x30;
-		t_fare[6] = (Final_price /10000 % 10) + 0x30;
+		t_fare[7] = (Final_price /1000) % 10 + 0x30;
+		t_fare[6] = (Final_price /10000) % 10 + 0x30;
 		t_fare[5] = 0x24;
 		t_fare[4] = 0x4b;
 		t_fare[3] = 0x48;
@@ -2566,11 +2267,11 @@ void HMI_Stop_W(void)
 	SD_buffer[112] = 0x20;
 
 	//v_can_end
-	v_value[1] = (Final_price /10000 % 10) + 0x30;
-	v_value[2] = (Final_price /1000 % 10) + 0x30;
-	v_value[3] = (Final_price /100 % 10) + 0x30;
-	v_value[4] = (Final_price /10 % 10) + 0x30;
-	v_value[5] = (Final_price /1 % 10) + 0x30;
+	v_value[1] = (Final_price /10000) % 10 + 0x30;
+	v_value[2] = (Final_price /1000) % 10 + 0x30;
+	v_value[3] = (Final_price /100) % 10 + 0x30;
+	v_value[4] = (Final_price /10) % 10 + 0x30;
+	v_value[5] = (Final_price /1) % 10 + 0x30;
 	if(Addition == 0)
 	{
 		v_value[0] = 0;
@@ -2581,16 +2282,16 @@ void HMI_Stop_W(void)
 	else
 	{
 		v_value[0] = 1;
-		v_value[6] = (Addition /1000 % 10) + 0x30;
-		v_value[7] = (Addition /100 % 10) + 0x30;
-		v_value[8] = (Addition /10 % 10) + 0x30;
+		v_value[6] = (Addition /1000) % 10 + 0x30;
+		v_value[7] = (Addition /100) % 10 + 0x30;
+		v_value[8] = (Addition /10) % 10 + 0x30;
 	}
 	//audio end
 	if (((Flag_Audio_end==1) || (Flag_btn_changed==1)) && (Flag_Audio_end!=48))
 	{
-		Flag_Audio_end = 0; 
-		Flag_Audio_start = 1; 
-		Flag_btn_changed = 0; 
+		Flag_Audio_end = 0; //false; //FALSE;
+		Flag_Audio_start = 1; //true; //TRUE;
+		Flag_btn_changed = 0; //false; //FALSE;
 
 		if (btn_value == 1)
 		{
@@ -2696,15 +2397,15 @@ void HMI_Stop_W(void)
 
 	printer_rd();
 
-	unsigned char Dis_x10_A[4];
-	Dis_x10 = Dis * 10;                   //distance
+	unsigned char Dis_x10_A[4] = {0};
+	Dis_x10 = Dis * 10;
 	Long_to_byte(Dis_x10, Dis_x10_A);
 	data2[0] = Dis_x10_A[0];
 	data2[1] = Dis_x10_A[1];
 	data2[2] = Dis_x10_A[2];
 	data2[3] = Dis_x10_A[3];
 	//total_fare - 4 bytes
-	unsigned char Final_price_x10_A[4];
+	unsigned char Final_price_x10_A[4] = {0};
 	Final_price_x10 = Final_price * 10;
 	Long_to_byte(Final_price_x10, Final_price_x10_A);
 	data2[4] = Final_price_x10_A[0];
@@ -2728,7 +2429,7 @@ void HMI_Stop_W(void)
 
 	//paid_km - 4 bytes
 	fare_km_x100 = (int)(fare_km * 100);
-	unsigned char temp[4];
+	unsigned char temp[4] = {0};
 	Long_to_byte(fare_km_x100, temp);
 	data2[14] = temp[0];
 	data2[15] = temp[1];
@@ -2736,7 +2437,7 @@ void HMI_Stop_W(void)
 	data2[17] = temp[3];
 	//wait_time - 4 bytes
 	fare_min_x100 = (int)(fare_min * 100);
-	unsigned char temp2[4];
+	unsigned char temp2[4] = {0};
 	Long_to_byte(fare_min_x100, temp2);
 	data2[18] = temp2[0];
 	data2[19] = temp2[1];
@@ -2744,7 +2445,7 @@ void HMI_Stop_W(void)
 	data2[21] = temp2[3];
 	//extra - 4 bytes
 	Addition_x10 = Addition * 10;
-	unsigned char temp3[4];
+	unsigned char temp3[4] = {0};
 	Long_to_byte(Addition_x10, temp3);
 	data2[22] = temp3[0];
 	data2[23] = temp3[1];
@@ -2766,8 +2467,6 @@ void HMI_Vacant_W(void)
 	HAL_Delay(1);
 	HAL_UART_Transmit(&huart1, (uint8_t *) LED_Vacant_On, 8, 0x10);
 	HAL_Delay(1);
-
-
 
 	//record eeprom total
 	tkm_d += Dis;
@@ -2814,18 +2513,18 @@ void HMI_Vacant_W(void)
 //	change_count = 0;
 //	fare_km_x = 0;
 ////	ttime_counter = 0; //move to end
-//	last_counter = 0;
-//	Dis = 0;                                    //空旗時沒按Clr 清Dis=>0
+//	last_counter = 0; //pull to start of the function as T-box has no signal
+//	Dis = 0;
 //	Distance = 0;
 //	distance = 0;
 
 	//Flag_Display check:
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_Clear, 7, 0x0E);  //CLEAR button 顯示上次車資
+	HAL_UART_Transmit(&huart1, (uint8_t *) RD_Clear, 7, 0x0E);
 	HAL_Delay(2);
 	if(RxFlag)
 	{
 		RxFlag = FALSE;
-		if (RxBuff[8] == 0x01 && Flag_Display == TRUE)			//重按CLR 取消顯示
+		if (RxBuff[8] == 0x01 && Flag_Display == TRUE)
 		{
 			display_wait = 0;
 			Flag_Display = FALSE;
@@ -2843,7 +2542,7 @@ void HMI_Vacant_W(void)
 		Flag_Display = FALSE;
 	}
 
-	if(Flag_Display)                                                //顯示上次車資
+	if(Flag_Display)
 	{
 		//change
 //		Long_to_byte(Last_Final_price_x10,temp_array);
@@ -2859,7 +2558,7 @@ void HMI_Vacant_W(void)
 		HAL_UART_Transmit(&huart1, Dur_HMS, 14, 0x1C);
 
 		printer_rd();
-		check_rd(); //Print operational data
+		check_rd();
 		clear_rd();
 
 		if(display_wait != 0)
@@ -2885,73 +2584,28 @@ void HMI_Vacant_W(void)
 //		counter = 0;
 //		ex_counter = 0;
 
-		////////////////////////pull to start of function
-//		last_counter = 0;
-//		Dis = 0;                                    //空旗時沒按Clr 清Dis=>0
+//		last_counter = 0; //pull to start of the function as T-box has no signal
+//		Dis = 0;
 //		Distance = 0;
 //		distance = 0;
+
 		Long_to_byte(Dis,temp_array);
 		HMI_Command(Dis_A,temp_array,10);
 
 		sec = 0;
 		min = 0;
 		hou = 0;
-		HAL_UART_Transmit(&huart1, (uint8_t *) Dur_HMS_clear, 14, 0x1C);  //Show Time = 00:00:00
+		HAL_UART_Transmit(&huart1, (uint8_t *) Dur_HMS_clear, 14, 0x1C);
 
-		HAL_UART_Transmit(&huart1, (uint8_t *) Print_clear, 8, 0x10);// not allow user to print during VACANT added by Edwin
 		HAL_Delay(2);
-	}
-
-	//switch QR code (plate/hketoll) on VACANT
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_qr, 7, 0x0E);
-	HAL_Delay(2);
-	if (RxFlag)
-	{
-		RxFlag = FALSE;
-		if(RxBuff[8] == 0x01 && len_detail!=0x0)                         //RxBuff is the data received from HMI, the [8] byte is the value of button (being pressed=0x01)
-		{
-			qr_wait++;
-
-			HAL_UART_Transmit(&huart1, etoll_qr, 63, 0x1C);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_on, 8, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_bg_green, 8, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_content_black, 8, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_on, 8, 0x0E);//must write this again , it wont change green when 8 details otherwise
-		}
-		else
-		{
-			qr_wait = 0;
-			HAL_UART_Transmit(&huart1, plate_qr, 18, 0x1C);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_off, 8, 0x0E);
-		}
-		memset(RxBuff,0,12);                           //Reset to 0 after run the function
-	}
-	if (qr_wait >= 10)
-	{
-		qr_wait = 0;
-		HAL_UART_Transmit(&huart1, CLR_RD_qr, 8, 0x1C);
-	}
-
-	//pages
-	HAL_UART_Transmit(&huart1, (uint8_t *) RD_page, 7, 0x0E);
-	HAL_Delay(2);
-	if (RxFlag)
-	{
-		RxFlag = FALSE;
-		if(RxBuff[8] == 0x01)
-		{
-			HAL_UART_Transmit(&huart1, (uint8_t *)Page01, 10, 0x0E);
-			E_read();                                                 // try to tackle it from HMI
-			HAL_UART_Transmit(&huart1, (uint8_t *) page_clear, 8, 0x0E);//Clear 2 times is a must
-		}
-		HAL_UART_Transmit(&huart1, (uint8_t *) page_clear, 8, 0x0E); //Clear 2 times is a must
-		memset(RxBuff,0,12);
 	}
 
 	HAL_UART_Transmit(&huart1, (uint8_t *) Plus10_clear, 8, 0x10);
 	HAL_Delay(1);
 	HAL_UART_Transmit(&huart1, (uint8_t *) Plus1_clear, 8, 0x10);
 	HAL_Delay(1);
+	HAL_UART_Transmit(&huart1, (uint8_t *) Print_clear, 8, 0x10);
+	HAL_UART_Transmit(&huart1,CLR_extra_btn,8,0x0E);
 
 	IC_Val1 = 0;
 	IC_Val2 = 0;
@@ -2982,15 +2636,15 @@ void HMI_Vacant_W(void)
 			//get end time
 			//end - dd/mm/yy hh:mm
 			//hmi_rtc - yy-mm-dd hh:mm:ss
-			end[0] = hmi_rtc[14]; //dd
+			end[0] = hmi_rtc[14];
 			end[1] = hmi_rtc[15];
-			end[3] = hmi_rtc[11]; //mm
+			end[3] = hmi_rtc[11];
 			end[4] = hmi_rtc[12];
-			end[6] = hmi_rtc[8]; //yy
+			end[6] = hmi_rtc[8];
 			end[7] = hmi_rtc[9];
-			end[9] = hmi_rtc[17]; //hh
+			end[9] = hmi_rtc[17];
 			end[10] = hmi_rtc[18];
-			end[12] = hmi_rtc[20]; //mm
+			end[12] = hmi_rtc[20];
 			end[13] = hmi_rtc[21];
 			tbox_finish();
 		}
@@ -2998,31 +2652,31 @@ void HMI_Vacant_W(void)
 		//calculate trip time (end time - start time)
 		E_write();
 		//trip data write to sd card
-		SD_buffer[34] = 0x32;       //2
-		SD_buffer[35] = 0x30;       //0
-		SD_buffer[36] = hmi_rtc[8]; //yy
+		SD_buffer[34] = 0x32;
+		SD_buffer[35] = 0x30;
+		SD_buffer[36] = hmi_rtc[8];
 		SD_buffer[37] = hmi_rtc[9];
-		SD_buffer[38] = 0x2D;       //-
-		SD_buffer[39] = hmi_rtc[11]; //mm
+		SD_buffer[38] = 0x2D;
+		SD_buffer[39] = hmi_rtc[11];
 		SD_buffer[40] = hmi_rtc[12];
-		SD_buffer[41] = 0x2D;       //-
-		SD_buffer[42] = hmi_rtc[14]; //dd
+		SD_buffer[41] = 0x2D;
+		SD_buffer[42] = hmi_rtc[14];
 		SD_buffer[43] = hmi_rtc[15];
 		SD_buffer[44] = 0x20;
-		SD_buffer[45] = hmi_rtc[17]; //hh
+		SD_buffer[45] = hmi_rtc[17];
 		SD_buffer[46] = hmi_rtc[18];
-		SD_buffer[47] = 0x3A;        //:
-		SD_buffer[48] = hmi_rtc[20]; //mm
+		SD_buffer[47] = 0x3A;
+		SD_buffer[48] = hmi_rtc[20];
 		SD_buffer[49] = hmi_rtc[21];
-		SD_buffer[50] = 0x3A;		//:
-		SD_buffer[51] = hmi_rtc[23]; //ss
+		SD_buffer[50] = 0x3A;
+		SD_buffer[51] = hmi_rtc[23];
 		SD_buffer[52] = hmi_rtc[24];
 		SD_buffer[53] = 0x20;
 
 		SD_buffer[54] = paid_min[8];
 		SD_buffer[55] = paid_min[9];
 		SD_buffer[56] = paid_min[10];
-		SD_buffer[57] = 0x2E;      //.
+		SD_buffer[57] = 0x2E;
 		SD_buffer[58] = paid_min[12];
 		SD_buffer[59] = paid_min[13];
 		SD_buffer[60] = 0x20;
@@ -3045,7 +2699,7 @@ void HMI_Vacant_W(void)
 			SD_buffer[62] = jtime[4];
 
 		SD_buffer[63] = jtime[5];
-		SD_buffer[64] = 0x2E;      //.
+		SD_buffer[64] = 0x2E;
 		SD_buffer[65] = jtime[6];
 		SD_buffer[66] = jtime[7];
 		SD_buffer[67] = 0x20;
@@ -3062,16 +2716,15 @@ void HMI_Vacant_W(void)
 		SD_buffer[75] = total_km[8];
 		SD_buffer[76] = total_km[9];
 		SD_buffer[77] = total_km[10];
-		SD_buffer[78] = 0x2E;        //.
+		SD_buffer[78] = 0x2E;
 		SD_buffer[79] = total_km[12];
 		SD_buffer[80] = total_km[13];
 		SD_buffer[81] = 0x20;
 
-		SD_buffer[113] = 0x0A; //new line
+		SD_buffer[113] = 0x0A;
 		fresult = f_open(&fil, "tripDATA.txt", FA_OPEN_EXISTING | FA_READ | FA_WRITE);
 		fresult = f_lseek(&fil, f_size(&fil));
 //		fresult = f_puts("AB1234 A000001 2023-07-18 18:18:30 2023-07-18 18:35:54 4.3 17.4 10.3 10.8 5.6 107.8 5 112.8\n", &fil);
-		                //XY1234 A00001 2024-09-16 15:59:21 2024-09-16 15:59:25   0.05   0.06   0.00   0.00    0.00   25.50   0.00   25.50
 		char const * ch = (const char*)&SD_buffer;
 		fresult = f_puts(ch, &fil);
 		f_close (&fil);
@@ -3080,10 +2733,7 @@ void HMI_Vacant_W(void)
 	Flag_Control_Up();
 	flag_sp = 1;
 	flag_vs_first = 1;
-	Flag_added = FALSE;                           //5 second  add total fare.
-	Flag_payment = FALSE;							//delete payment QR code
-	payment_wait=0;									//delete payment QR code
-	Fu = 0;
+	Fu = 0;                       //moved to end start to solve T-box clear problem
 	Ft = 0;
 	Fd = 0;
 	Dt = 0;
@@ -3106,9 +2756,9 @@ void HMI_Vacant_W(void)
 	fare_km_x = 0;
 //	ttime_counter = 0; //move to end
 	last_counter = 0;
-	Dis = 0;                                    //空旗時沒按Clr 清Dis=>0
+	Dis = 0;
 	Distance = 0;
-	distance = 0;
+	distance = 0;				//moved to end start to solve T-box clear problem
 }
 
 void extras_rd(void)
@@ -3121,7 +2771,7 @@ void extras_rd(void)
 	if(RxFlag)
 	{
 		RxFlag = FALSE;
-		unsigned char buffer1[2];
+		unsigned char buffer1[2] = {0};
 		buffer1[0] = RxBuff[7];
 		buffer1[1] = RxBuff[8];
 		Plus_10 = byte_to_long(buffer1);
@@ -3135,7 +2785,7 @@ void extras_rd(void)
 	if(RxFlag)
 	{
 		RxFlag = FALSE;
-		unsigned char buffer2[2];
+		unsigned char buffer2[2] = {0};
 		buffer2[0] = RxBuff[7];
 		buffer2[1] = RxBuff[8];
 		Plus_1 = byte_to_long(buffer2);
@@ -3254,18 +2904,6 @@ void printer_rd(void)
 					end[12] = hmi_rtc[20];
 					end[13] = hmi_rtc[21];
 				}
-
-
-			}
-			if(Drv_state == S_STOP)
-			{
-			Flag_payment=TRUE;
-			payment_wait=1;
-			//show e-payment qr code
-			HAL_UART_Transmit(&huart1, epay_qr, 16, 0x1C);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_on, 8, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_bg_white, 8, 0x0E);
-			HAL_UART_Transmit(&huart1, (uint8_t *) cmd_content_red, 8, 0x0E);
 			}
 
 			printer_process();
@@ -3291,6 +2929,7 @@ void check_rd(void)
 
 void clear_rd(void)
 {
+	// clear everyday info
 	HAL_UART_Transmit(&huart1, (uint8_t *) RD_Plus1, 7, 0x0E);
 	HAL_Delay(2);
 	if(RxFlag)
@@ -3356,7 +2995,7 @@ uint32_t byte_to_Long(uint8_t* byteArray)
 
 void HMI_Command(const uint8_t* command, uint8_t* data, uint8_t NOB)
 {
-	char string[15];
+	char string[15] = {0};
 
 	memset(string,0,15);
 	memcpy(string, command, NOB);	// Fee 10 byte
@@ -3366,7 +3005,7 @@ void HMI_Command(const uint8_t* command, uint8_t* data, uint8_t NOB)
 
 void HMI_Transmit(char out[], uint8_t nob)
 {
-	uint8_t temp[20];
+	uint8_t temp[20]  = {0};
 //	uint16_t length = 0;
 
 	memcpy(temp,out,11);	// debug brake point
@@ -3434,37 +3073,13 @@ void long_to_byte_crc(uint16_t longInt, unsigned char* byteArray)
 	byteArray[1] = (uint8_t)((longInt & 0XFF00) >> 8 );
 }
 
-int hex2Dec(unsigned char hex[])
-{
-	int len = strlen((char*) hex);
-	int base = 1;
-	int dec = 0;
-	for (int i=len-1; i>=0; i--)
-	{
-		if (hex[i] >= '0' && hex[i] <= '9')
-		{
-			dec += (hex[i] - '0') * base;
-		}
-		else if (hex[i] >= 'A' && hex[i] <= 'F')
-		{
-			dec += (hex[i] - 'A' + 10) * base;
-		}
-		else if (hex[i] >= 'a' && hex[i] <= 'f')
-		{
-			dec += (hex[i] - 'a' + 10) * base;
-		}
-		base *= 16;
-	}
-	return dec;
-}
-
 void tbox_start(void)
 {
-	unsigned char sn[2];
+	unsigned char sn[2] = {0};
 //	unsigned char data1[6];
-	unsigned char cal_s[12];
-	uint16_t crc1_value;
-	unsigned char crc1[2];
+	unsigned char cal_s[12] = {0};
+	uint16_t crc1_value = 0;
+	unsigned char crc1[2] = {0};
 //	unsigned char t_start[16];
 
 	//sn
@@ -3493,9 +3108,9 @@ void tbox_start(void)
 	long_to_byte_crc(crc1_value, crc1);
 
 	//update msg
-	memcpy(t_start, zone, sizeof(unsigned char)*2);     //AA55
-	memcpy(t_start+2, crc1, sizeof(unsigned char)*2);   //crc
-	memcpy(t_start+4, hd1, sizeof(unsigned char)*6);   //header 1
+	memcpy(t_start, zone, sizeof(unsigned char)*2);
+	memcpy(t_start+2, crc1, sizeof(unsigned char)*2);
+	memcpy(t_start+4, hd1, sizeof(unsigned char)*6);
 	memcpy(t_start+10, data1, sizeof(unsigned char)*6);
 
 	//transmit
@@ -3510,11 +3125,11 @@ void tbox_start(void)
 
 void tbox_finish(void)
 {
-	unsigned char sn[2];
+	unsigned char sn[2] = {0};
 //	unsigned char data2[26];
-	unsigned char cal_f[32];
-	uint16_t crc2_value;
-	unsigned char crc2[2];       //校驗碼
+	unsigned char cal_f[32] = {0};
+	uint16_t crc2_value = 0;
+	unsigned char crc2[2] = {0};
 //	unsigned char t_finish[36];
 
 	//sn
@@ -3539,7 +3154,7 @@ void tbox_finish(void)
 
 	//for crc calculate, cal_f = (header + data)
 	memcpy(cal_f, hd2, sizeof(unsigned char)*6);
-	memcpy(cal_f+6, data2, sizeof(unsigned char)*26);         //DATA
+	memcpy(cal_f+6, data2, sizeof(unsigned char)*26);
 	crc2_value = CRC16(cal_f, 32);
 	long_to_byte_crc(crc2_value, crc2);
 
@@ -3934,22 +3549,21 @@ void eeprom_r(void)
 {
 	HAL_I2C_Mem_Read(&hi2c2, ADDR_EEPROM_Read, 0, I2C_MEMADD_SIZE_16BIT,ReadBuffer,BufferSize, 1000);
 
-	unsigned char Dist_Fkm[4];
-	unsigned char Fa_amt[2];
-	unsigned char Fa_2km[2];
-	unsigned char Fa_200m1[2];
-	unsigned char Fa_200m2[2];
+	unsigned char Dist_Fkm[4] = {0};
+	unsigned char Fa_amt[2] = {0};
+	unsigned char Fa_2km[2] = {0};
+	unsigned char Fa_200m1[2] = {0};
+	unsigned char Fa_200m2[2] = {0};
 //	unsigned char i_constant_k[2];
-	unsigned char constant_k[2];
-	unsigned char Sp_Co[2];
-	unsigned char Sp_Max[2];
+	unsigned char constant_k[2] = {0};
+	unsigned char Sp_Co[2] = {0};
+	unsigned char Sp_Max[2] = {0};
 	//unsigned char Type[2]; - move to global
 	//unsigned char plate_no[10]; - move to global
-//	uint8_t len_plate;
-//	uint8_t len_detail;
 
 	//rtc set time [6] - rtc_set()
-
+	//HW ver. [2]
+	//FW ver. [2]
 	//total = 64 (AABB + 59 + reserve[2] + FF)
 
 	//testing - check first few bytes (2 or 4 bytes?), if they are all 0xff, then the EEPROM is empty
@@ -4026,28 +3640,28 @@ void eeprom_r(void)
 	//no need to transfer, will use in parameter reply
 	//memset(Type, 0, 2);
 
-	//10 - ReadBuffer[20] - length of plate no.
-	len_plate = ReadBuffer[20]; //plate_qr[2]; //hex2Dec(&plate_qr[2]);
-	plate_qr[2] = len_plate + 5;
-
-	//11 - ReadBuffer[21][22][23][24][25][26][27][28][29][30] - plate no.
-	plate_no[0] = ReadBuffer[21];
-	plate_no[1] = ReadBuffer[22];
-	plate_no[2] = ReadBuffer[23];
-	plate_no[3] = ReadBuffer[24];
-	plate_no[4] = ReadBuffer[25];
-	plate_no[5] = ReadBuffer[26];
-	plate_no[6] = ReadBuffer[27];
-	plate_no[7] = ReadBuffer[28];
-	plate_no[8] = ReadBuffer[29];
-	plate_no[9] = ReadBuffer[30];
-
-	for(int i=0; i<len_plate; i++)
-	{
-		plate_qr[i+6] = plate_no[10-len_plate+i];
-	}
-	plate_qr[len_plate+6] = 0xFF;
-	plate_qr[len_plate+7] = 0xFF;
+	//10 - ReadBuffer[20][21][22][23]24][25][26][27][28][29] - plate no.
+	plate_no[0] = ReadBuffer[20];
+	plate_no[1] = ReadBuffer[21];
+	plate_no[2] = ReadBuffer[22];
+	plate_no[3] = ReadBuffer[23];
+	plate_no[4] = ReadBuffer[24];
+	plate_no[5] = ReadBuffer[25];
+	plate_no[6] = ReadBuffer[26];
+	plate_no[7] = ReadBuffer[27];
+	plate_no[8] = ReadBuffer[28];
+	plate_no[9] = ReadBuffer[29];
+	//QR code
+	//need to remove space - 0x20 for QR CODE use
+	//new variable plate_qr[] = {0x5A, 0xA5, length, 0x82, 0x10, 0x80, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0xFF, 0xFF};
+	//check if 0x20
+	//then calculate length
+	plate_qr[6] = ReadBuffer[24];
+	plate_qr[7] = ReadBuffer[25];
+	plate_qr[8] = ReadBuffer[26];
+	plate_qr[9] = ReadBuffer[27];
+	plate_qr[10] = ReadBuffer[28];
+	plate_qr[11] = ReadBuffer[29];
 
 	//printer -> print the receipt / tbox will use set plate no. in web config
 	plate[13] = plate_no[9];
@@ -4063,48 +3677,7 @@ void eeprom_r(void)
 	//parameter reply -> directly reply plate_no[] in Replybuffer[]
 	//memset(plate_no, 0, 10);
 
-	//12 - ReadBuffer[31][32][33][34][35][36] - rtc set date and time - rtc_set()
-	//13 - ReadBuffer[37] - length of details of vehicle
-	len_detail = ReadBuffer[37]; //hex2Dec(&etoll_qr[2]);
-	etoll_qr[2] = len_detail + 53;// etoll_qr is the QR code
-
-	//14 - details of vehicle - 8 bytes - ASCII           //Chris reminder: 不要加判斷在eeprom function
-	details[0] = ReadBuffer[38];
-	details[1] = ReadBuffer[39];
-	details[2] = ReadBuffer[40];
-	details[3] = ReadBuffer[41];
-	details[4] = ReadBuffer[42];
-	details[5] = ReadBuffer[43];
-	details[6] = ReadBuffer[44];
-	details[7] = ReadBuffer[45];
-
-	for(int i=0; i<len_detail; i++)
-	{
-		etoll_qr[i+53] = details[8-len_detail+i]; //len_detail can be 0-8
-	}
-	etoll_qr[len_detail+53] = 0xFF;
-	etoll_qr[len_detail+53+1] = 0xFF;
-
-	//DONE
-	//15 - ReadBuffer[46][47][48][49][50][51][52][53][54][55][56][57] - serial no. - YTMETER00001
-	serial_no[0] = ReadBuffer[46];
-	serial_no[1] = ReadBuffer[47];
-	serial_no[2] = ReadBuffer[48];
-	serial_no[3] = ReadBuffer[49];
-	serial_no[4] = ReadBuffer[50];
-	serial_no[5] = ReadBuffer[51];
-	serial_no[6] = ReadBuffer[52];
-	serial_no[7] = ReadBuffer[53];
-	serial_no[8] = ReadBuffer[54];
-	serial_no[9] = ReadBuffer[55];
-	serial_no[10] = ReadBuffer[56];
-	serial_no[11] = ReadBuffer[57];
-
-	//16 - ReadBuffer[58][59][60] - fare effective date - (bcd) 23 08 02
-	effected[0] = ReadBuffer[58];
-	effected[1] = ReadBuffer[59];
-	effected[2] = ReadBuffer[60];
-	//17 - stop bytes FF
+	//16 - stop bytes FF
 }
 
 //set time & date
@@ -4115,15 +3688,15 @@ void rtc_set(void)
 	PCF2129_Init(hi2c1, RTC_WRITE_ADDR);
 	PCF2129_configure();                         ///Set 24hr Format
 
-	PCF2129_setDate(ReadBuffer[31], ReadBuffer[32], ReadBuffer[33], ReadBuffer[34], ReadBuffer[35], ReadBuffer[36]);
+	PCF2129_setDate(ReadBuffer[30], ReadBuffer[31], ReadBuffer[32], ReadBuffer[33], ReadBuffer[34], ReadBuffer[35]);
 }
 
 //read time & date
 //transfer to uart
 void time_update(void)
 {
-	unsigned char r_buffer[9];
-	unsigned char u_buffer[6];
+	unsigned char r_buffer[9] = {0};
+	unsigned char u_buffer[6] = {0};
 
 	RTC_date = PCF2129_getDate();
 
@@ -4157,28 +3730,19 @@ void time_update(void)
 	ss = PCF2129_read(PCF2129_REG_ALARM_SECOND);
 
 	PCF2129_write(PCF2129_REG_CONTROL1, 0x00);
-//	PCF2129_write(PCF2129_REG_CONTROL2, 0x00);
+//	PCF2129_write(PCF2129_REG_CONTROL2, 0x00);  //to unlock
 	PCF2129_write(PCF2129_REG_CONTROL3, 0x00);
 
-//	check AIE if power off reset all flags
+	//check AIE if power off reset all flags
 	if ((ctrl_2 & 0x02) == 0x02)
 	{
-		EventDebugLog("AIE if 0x02 Before Flag_Protect");
-
 		//if AIE set, continue anti-tamper mode, only show unlock time
 		flag_alarm_clear = TRUE;
-		Flag_Protect = TRUE;  						//鎖錶狀態
-
+		EventDebugLog("AIE if 0x02 Before Flag_Protect");
+		Flag_Protect = TRUE;
 		EventDebugLog("AIE if 0x02 After Flag_Protect");
-
-		counter=0; //Add by Edwin to prevent adding distance while locking
-		last_counter=0;//Add by Edwin to prevent adding distance while locking
-		Dt=0;//Add by Edwin
-		Fu=0;//Add by Edwin
-		Ft=0;//Add by Edwin
-		Fd=0;//Add by Edwin
 	}
-	
+
 	//Flag_set_alarm_rtc - this flag will set after 30s alarm, this if will calculate 1 hour count down
 	if(Flag_set_alarm_rtc)
 	{
@@ -4206,11 +3770,9 @@ void time_update(void)
 		u_buffer[3] = decToBcd(UtcTime.hour);
 		u_buffer[4] = decToBcd(UtcTime.minute);
 		u_buffer[5] = decToBcd(UtcTime.second);
+
 		//Leo&Edwin: Add log to SD card to record down the things to write in RCF2129.
-		//log==> current time+setalarm+ u_buffer[3]:u_buffer[4]:u_buffer[5]
-
-
-
+				//log==> current time+setalarm+ u_buffer[3]:u_buffer[4]:u_buffer[5]
 		fresult = f_open(&fil, "LockLog.txt", FA_OPEN_EXISTING | FA_READ | FA_WRITE);
 		if (fresult == FR_NO_FILE) {
 		    // Create the file
@@ -4224,9 +3786,8 @@ void time_update(void)
 		        f_write(&fil, initialData, strlen(initialData), &bytesWritten);
 		    }
 		}
-
 		fresult = f_lseek(&fil, f_size(&fil));
-		char buffer2[200];
+		char buffer2[200]  = {0};
 		snprintf(buffer2, sizeof(buffer2), "\nBefore writing Alarm :\n Locking Time(ymdhms):%d-%d-%d %d:%d:%d,\n Flag_set_alarm_rtc: %d,\n u_buffer[3](dec): %d,\n u_buffer[4](dec): %d,\n u_buffer[5](dec): %d,\n ctrl_2_before: %d,\n",stCurrentTime.year ,stCurrentTime.month,stCurrentTime.date, stCurrentTime.hour, stCurrentTime.minute, stCurrentTime.second, Flag_set_alarm_rtc, bcdToDec(u_buffer[3]), bcdToDec(u_buffer[4]),bcdToDec(u_buffer[5]),PCF2129_read(PCF2129_REG_CONTROL2));
 		fresult = f_puts(buffer2, &fil);
 		f_close (&fil);
@@ -4244,48 +3805,56 @@ void time_update(void)
 		//log==> current time+ reread alarm+ hh_read[3]:mm_read[4]:ss_read[5]
 		fresult = f_open(&fil, "LockLog.txt", FA_OPEN_EXISTING | FA_READ | FA_WRITE);//open
 		fresult = f_lseek(&fil, f_size(&fil));
-		char buffer1[200];
+		char buffer1[200]  = {0};
 		snprintf(buffer1, sizeof(buffer1), "\nAfter writing Alarm :\n Written Time(ymdhms):%d-%d-%d %d:%d:%d,\n Flag_set_alarm_rtc: %d,\n Alarm_hr: %d,\n Alarm_min: %d,\n Alarm_sec: %d,\n ctrl_2_after: %d,\n ",stCurrentTime.year ,stCurrentTime.month,stCurrentTime.date, stCurrentTime.hour, stCurrentTime.minute, stCurrentTime.second, Flag_set_alarm_rtc, bcdToDec(PCF2129_read(PCF2129_REG_ALARM_HOUR)), bcdToDec(PCF2129_read(PCF2129_REG_ALARM_MINUTE)),bcdToDec(PCF2129_read(PCF2129_REG_ALARM_SECOND)),PCF2129_read(PCF2129_REG_CONTROL2));
 		fresult = f_puts(buffer1, &fil);
 		f_close (&fil);
 		clear_buffer();
 	}
 	//trigger the alarm - ~INT = 0 (PA11)
-	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == 0)     //A   //11 //解鎖
+	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == 0)
 	{
-		Unlock_Meter();
-//		flag_alarm_clear = FALSE;
-//		Flag_Protect = FALSE;
-//		Flag_alarm = TRUE;
-//		PCF2129_write(PCF2129_REG_CONTROL2, 0x00);
-//
-//		HAL_UART_Transmit(&huart1, unlock_clear, 12, 0x20);
-//		HAL_UART_Transmit(&huart1, C_Fare_clear, 7, 0x20);
-//
-//		//TIME清零 by Edwin
-//		sec = 0;
-//		min = 0;
-//		hou = 0;
-//		HAL_UART_Transmit(&huart1, (uint8_t *) Dur_HMS_clear, 14, 0x1C);
-//		counter = 0;//add by Edwin to prevent meter jump to stop again
-//		Fu=0;//Add by Edwin
-//		Ft=0;//Add by Edwin
-//		Fd=0;//Add by Edwin
-//
-//		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Hired_Off, 8, 0x10);
-//		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Stop_Off, 8, 0x10);
-//		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Vacant_On, 8, 0x10);
-//
-//
-//
-//
-//		Drv_state = S_VACANT;
-//		Width = 0;
-//		Speed = 0;
-	}
+		flag_alarm_clear = FALSE;
 
-	unsigned char rtc_buffer[18];
+		EventDebugLog("Unlock Meter Before Flag_Protect modified"); //Added by Keven Recommand
+
+		Flag_Protect = FALSE;
+
+		EventDebugLog("Unlock Meter After Flag_Protect modified");
+
+		Flag_alarm = TRUE;
+		//PCF2129_write(PCF2129_REG_CONTROL1, 0x00);
+		PCF2129_write(PCF2129_REG_CONTROL2, 0x00);
+
+//		unsigned char unlock_clear[] = {0x5A, 0xA5, 0x09, 0x82, 0x10, 0x32, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+		HAL_UART_Transmit(&huart1, unlock_clear, 12, 0x20);
+//		unsigned char C_Fare_clear[] = {0x5A, 0xA5, 0x04, 0x82, 0x10, 0x30, 0x20};
+		HAL_UART_Transmit(&huart1, C_Fare_clear, 7, 0x20);
+
+		//Drv_state = S_VACANT;
+		//HMI_Vacant_W();
+		//Flag_H = FALSE;
+		//Flag_S = FALSE;
+		//Flag_V = TRUE;
+		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Hired_Off, 8, 0x10);
+		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Stop_Off, 8, 0x10);
+		HAL_UART_Transmit(&huart1, (uint8_t *) LED_Vacant_On, 8, 0x10);
+		Drv_state = S_VACANT;
+		Width = 0;
+		Speed = 0;
+//		Speed_x = 0;
+	}
+//	else
+//	{
+//		flag_alarm_clear = FALSE;
+//	}
+	//test code - rtc alarm function
+
+	unsigned char rtc_buffer[18] = {0};
 	BCD2ASC(rtc_buffer, r_buffer, 18);
+
+//	HAL_UART_Transmit(&huart2, rtc_buffer, 12, 0x20);
+//	HAL_UART_Transmit(&huart2, rtc_buffer, 14, 0x20);
 
 	hmi_rtc[8] = rtc_buffer[0];
 	hmi_rtc[9] = rtc_buffer[1];
@@ -4308,42 +3877,7 @@ void time_update(void)
 	HAL_UART_Transmit(&huart1, hmi_rtc, 25, 0x20);
 }
 
-void Unlock_Meter(void) // Move by Edwin
-{
-	flag_alarm_clear = FALSE;
 
-	EventDebugLog("Unlock Meter Before Flag_Protect modified");
-
-	Flag_Protect = FALSE;
-	Flag_alarm = TRUE;
-	PCF2129_write(PCF2129_REG_CONTROL2, 0x00);
-
-	EventDebugLog("Unlock Meter After Flag_Protect modified");
-
-	HAL_UART_Transmit(&huart1, unlock_clear, 12, 0x20);
-	HAL_UART_Transmit(&huart1, C_Fare_clear, 7, 0x20);
-
-	//TIME清零 by Edwin
-	sec = 0;
-	min = 0;
-	hou = 0;
-	HAL_UART_Transmit(&huart1, (uint8_t *) Dur_HMS_clear, 14, 0x1C);
-	counter = 0;//add by Edwin to prevent meter jump to stop again
-	Fu=0;//Add by Edwin
-	Ft=0;//Add by Edwin
-	Fd=0;//Add by Edwin
-
-	HAL_UART_Transmit(&huart1, (uint8_t *) LED_Hired_Off, 8, 0x10);
-	HAL_UART_Transmit(&huart1, (uint8_t *) LED_Stop_Off, 8, 0x10);
-	HAL_UART_Transmit(&huart1, (uint8_t *) LED_Vacant_On, 8, 0x10);
-
-
-
-
-	Drv_state = S_VACANT;
-	Width = 0;
-	Speed = 0;
-	}
 
 void DebugLog(void)
 {
@@ -4378,9 +3912,10 @@ void DebugLog(void)
 	}
 	#endif
 }
+
 void EventDebugLog(char *str)
 {
-	#ifdef DEBUG
+//	#ifdef DEBUG
 	stCurrentTime.year = bcdToDec(RTC_date.date.y) + 2000;
 	stCurrentTime.month = bcdToDec(RTC_date.date.m);
 	stCurrentTime.date = bcdToDec(RTC_date.date.d);
@@ -4403,14 +3938,15 @@ void EventDebugLog(char *str)
 	}
 
 	fresult = f_lseek(&fil, f_size(&fil));
-	char buffer3[300];
+	char buffer3[300]  = {0};
 	snprintf(buffer3, sizeof(buffer3), "\nEvent: %s  Log Time(ymdhms):%d-%d-%d %d:%d:%d  Flag_set_alarm_rtc: %d  hh:mm:ss: %d:%d:%d  ctrl_2: %d  Flag_Protect: %d  Flag_Alarm: %d  Tamper_Counter: %d  counter: %d  last_counter: %d  Speed: %d  Width: %d",str,stCurrentTime.year ,stCurrentTime.month,stCurrentTime.date, stCurrentTime.hour, stCurrentTime.minute, stCurrentTime.second, Flag_set_alarm_rtc, bcdToDec(hh),bcdToDec(mm),bcdToDec(ss),ctrl_2,Flag_Protect,Flag_alarm,Tamper_Counter,counter,last_counter,Speed,Width);
 	fresult = f_puts(buffer3, &fil);
 	f_close (&fil);
 	clear_buffer();
 //	}
-	#endif
+//	#endif
 }
+
 
 void BCD2ASC(uint8_t *asc, const uint8_t *bcd, uint32_t len)
 {
@@ -4433,19 +3969,19 @@ void BCD2ASC(uint8_t *asc, const uint8_t *bcd, uint32_t len)
 
 unsigned char BCD2Dec(unsigned char data)
 {
-	unsigned char temp;
+	unsigned char temp  = {0};
 	temp = ((data >> 4)*10 + (data & 0x0F));
 	return temp;
 }
 
 unsigned char Dec2BCD(unsigned char data)
 {
-	unsigned char temp;
+	unsigned char temp = {0};
 	temp = (((data/10) << 4) + (data%10));
 	return temp;
 }
 
-void Dur_hms_cal()                                                      //the time show on main page during hired /stop
+void Dur_hms_cal()
 {
 	sec++;
 	if(sec == 60)
@@ -4470,12 +4006,12 @@ void Dur_hms_cal()                                                      //the ti
 		sec = 59;
 	}
 
-	sec_1 = (sec / 1 % 10) + 0x30;
-	sec_10 = (sec / 10 % 10) + 0x30;
-	min_1 = (min / 1 % 10) + 0x30;
-	min_10 = (min / 10 % 10) + 0x30;
-	hou_1 = (hou / 1 % 10) + 0x30;
-	hou_10 = (hou / 10 % 10) + 0x30;
+	sec_1 = (sec / 1) % 10 + 0x30;
+	sec_10 = (sec / 10) % 10 + 0x30;
+	min_1 = (min / 1) % 10 + 0x30;
+	min_10 = (min / 10) % 10 + 0x30;
+	hou_1 = (hou / 1) % 10 + 0x30;
+	hou_10 = (hou / 10) % 10 + 0x30;
 
 	Dur_HMS[13] = sec_1;
 	Dur_HMS[12] = sec_10;
@@ -4495,7 +4031,7 @@ void Read_Pulse(void)
 		last_pulse = 1;
 	}
 
-	if ((Width != 0) && (Width >= 10000 || Width <= 2000) && (last_pulse == 1)) //鎖錶判定1, 寬度不在範圍
+	if ((Width != 0) && (Width >= 10000 || Width <= 2000) && (last_pulse == 1))
 	{
 		Tamper_Counter++;
 	}
@@ -4503,7 +4039,7 @@ void Read_Pulse(void)
 	{
 		Tamper_Counter++;
 	}
-	else if (flag_tester && (Speed >= 120))    //鎖錶判定2, 超速
+	else if (flag_tester && (Speed >= 120))
 	{
 		Tamper_Counter++;
 	}
@@ -4516,8 +4052,8 @@ void Read_Pulse(void)
 
 void Read_Distance(void)
 {
-	Distance = (float) (counter * 1.0 / ck);	 //  大D = 1m/1000= 0.001km
-	distance = (float) (counter * 1000.0 / ck);  //  小d =1m
+	Distance = (float) (counter * 1.0 / ck);
+	distance = (float) (counter * 1000.0 / ck);
 }
 
 void Read_Speed(void)
@@ -4536,23 +4072,23 @@ void Read_Speed(void)
 	}
 }
 
-void Fare_Calculation(void)  // fare calculating function
+void Fare_Calculation(void)
 {
 	//anti-tampering check
-	Read_Pulse();             // check the pulse is tamper or not (within a width)
-	Read_Distance();          // Distance is in km , distance is in 0.1m
+	Read_Pulse();
+	Read_Distance();
 	Read_Speed();
 
-	if (Tamper_Counter >= 5)                         //LOCK
+	if (Tamper_Counter >= 5)
 	{
-		//record locked data to SD card
-		//LOCKED
-		SD_buffer[34] = 0x4C;
-		SD_buffer[35] = 0x4F;
-		SD_buffer[36] = 0x43;
-		SD_buffer[37] = 0x4B;
+		//record tamper data to SD card
+		//TAMPER
+		SD_buffer[34] = 0x54;
+		SD_buffer[35] = 0x41;
+		SD_buffer[36] = 0x4D;
+		SD_buffer[37] = 0x50;
 		SD_buffer[38] = 0x45;
-		SD_buffer[39] = 0x44;
+		SD_buffer[39] = 0x52;
 		SD_buffer[40] = 0x20;
 		//speed & width
 		speed_d = (Speed * 100) / 10;
@@ -4595,45 +4131,43 @@ void Fare_Calculation(void)  // fare calculating function
 
 		Width = 0;
 		Speed = 0;
+//		Speed_x = 0;
 		Tamper_Counter = 0;
 
-
 		EventDebugLog("Before Normal Lock in Fare Calculation");
-
 		Flag_Protect = TRUE;
 		EventDebugLog("After Normal Lock in Fare Calculation");
 	}
-	
-	if (fare > Fare_reached || fabs(fare - Fare_reached) <= 1e-3)
-		Fi = Fare_200m2;                                                         // Long distance  Fi = Fare Interval
-	else if (fare > Fare_2km || fabs(fare - Fare_2km) <= 1e-3)
-		Fi = Fare_200m1;                                                       // 2km to before long distance
-	else
-		Fi = Fare_200m0;                                                     // <2KM
 
-	if (Speed <= Speed_co)                           //Speed <= Speed constant(12km/h)
+	if (fare > Fare_reached || fabs(fare - Fare_reached) <= 1e-3)
+		Fi = Fare_200m2; //T2
+	else if (fare > Fare_2km || fabs(fare - Fare_2km) <= 1e-3)
+		Fi = Fare_200m1; //T1;
+	else
+		Fi = Fare_200m0; //2.70; //2.35;
+
+	if (Speed <= Speed_co) //12
 	{
-		if(Drv_state == S_HIRED)												//only when hired mode, count the Fare unit and time
+		if(Drv_state == S_HIRED)
 		{
-			last_counter = counter;                                           //update count without count the paid distance
+			last_counter = counter;
 //			Fu+=4;
 			Fu+=(float)ck/300;
-			Ft++;                                                             // Cpt : paid time counter ++
-			Dur_hms_cal();                                                    //Count Time
+			Ft++;
 		}
 		else
 		{
-			Dt = counter - last_counter;										//new distance
-			DtX = Dt + DtX;														//old distance + new distance = total distance
-			last_counter = counter;												//new distance become old distance
-			for (; DtX>0; DtX--)												//When total distance record >0, count the distance to the fare distance
+			Dt = counter - last_counter;
+			DtX = Dt + DtX;
+			last_counter = counter;
+			for (; DtX>0; DtX--)
 			{
-				Fd++;															//fare distance++
-				Fu++;															//fare unit ++
+				Fd++;
+				Fu++;
 			}
 		}
 	}
-	else											//Speed > Speed constant(12km/h)
+	else
 	{
 		Dt = counter - last_counter;
 		DtX = Dt + DtX;
@@ -4646,31 +4180,32 @@ void Fare_Calculation(void)  // fare calculating function
 	}
 
 	//check Fu
-	if (fabs(Fu - (float)ck/5) <= 1e-6 || Fu > (float)ck/5) 		// if Fare unit - 200 ~= 0  or Fu - 200 > 0
+//	if (fabs(Fu - ((float)ck/5 + (float)ck/1000)) <= 1e-3 || Fu > ((float)ck/5 + (float)ck/1000))
+	if (fabs(Fu - (float)ck/5) <= 1e-6 || Fu > (float)ck/5)
 	{
-		fare = fare + Fi;                                            //keep adding fare     //new fare = fare + fare interval
-		Fu = Fu - ck/5;																		//new fare unit = old fare unit -200
+		fare = fare + Fi;
+		Fu = Fu - ck/5;
 	}
 
-	fare_km = ((float)Fd / ck);   // Fd is Fare distance(m), ck = 1/1000 = convert to km
-	fare_min = ((float)Ft / 60.0); // Ft is Fare time(s), 1/60= convert to min
+	fare_km = ((float)Fd / ck);
+	fare_min = ((float)Ft / 60.0);
 
-	if((Flag_2km == FALSE) && (((distance > 2000) || (fabs(distance-2000) <= 1e-3)) || ((fare>Fare_2km) || (fabs(fare-Fare_2km) <= 1e-3))))       //If they want 2001 jump, change all 2000 in this line to 2001.
+	if((Flag_2km == FALSE) && (((distance > 2000) || (fabs(distance-2000) <= 1e-3)) || ((fare>Fare_2km) || (fabs(fare-Fare_2km) <= 1e-3))))
 	{
 		Flag_2km = TRUE;
-		Fi = Fare_200m1; 
+		Fi = Fare_200m1; //T1
 		fare = Fare_2km;
 		fare = fare + Fi;
 	}
 
 	//check fare for HMI fare display - fare_d
-	if ((fare > Fare_2km) || fabs(fare-Fare_2km) <= 1e-3)                //more than 2 km show actual price
+	if ((fare > Fare_2km) || fabs(fare-Fare_2km) <= 1e-3)
 	{
 		fare_d = fare;
 	}
 	else
 	{
-		fare_d = Fare_2km; //20.5 //24.0;                                //less than 2 km show 2km price
+		fare_d = Fare_2km; //20.5 //24.0;
 	}
 
 	if ((Last_fare_d != fare_d) && (fare_d != Fare_2km))
@@ -4706,11 +4241,20 @@ void Flag_Control_Down()
 
 void Anti_Tamper_Handle()
 {
+	//x read eeprom status
+	//fake pulse
+	//detect pin
+
 	//set alarm in rtc & ctrl_2
 
 	//1. alarm 30s (first time enter will alarm)
 	//2. 'C' in HMI fare
-	unsigned char C_Fare[] = {0x5A, 0xA5, 0x04, 0x82, 0x10, 0x30, 0x43};  //show "c"
+	unsigned char C_Fare[] = {0x5A, 0xA5, 0x04, 0x82, 0x10, 0x30, 0x43};				// 7 byte  //min fare
+//	unsigned char C_Fare_Min[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
+	//c_fare_min -> fare_reached
+//	unsigned char C_Fare_Min[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x09, 0x2E}; //2350 - 23.50
+	//DONE：read from parameter, move to global define
+//	unsigned char C_Fare_Min[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x00, 0x00, 0x00, 0x0A, 0x8C}; //2700 - 27.00
 
 	uint8_t temp_array[4];
 	Long_to_byte(Fare_min, temp_array);
@@ -4723,16 +4267,16 @@ void Anti_Tamper_Handle()
 
 	unsigned char alarm[] = {0x5A, 0xA5, 0x05, 0x82, 0x00, 0xA0, 0x00, 0x7d};
 	//flag protect set again (maybe power off), no need alarm, only show unlock
-	if(flag_alarm_clear)			//判定鎖錶ALARM已響
+	if(flag_alarm_clear)
 	{
 		Flag_alarm = FALSE;
 	}
 
-	if(Flag_alarm)					//要響ALARM
+	if(Flag_alarm)
 	{
 		Flag_alarm = FALSE;
 		Flag_set_alarm_rtc = TRUE;
-		for(i=0; i<30; i++) //test 5s - set 30s                           //i<30指響30秒
+		for(i=0; i<30; i++) //test 5s - set 30s
 		{
 			time_update();
 			HAL_UART_Transmit(&huart1, alarm, 8, 0xffff);
@@ -4743,16 +4287,16 @@ void Anti_Tamper_Handle()
 	{
 		//3. lock the meter
 //		Lock_Count_Down();
-		unsigned char a_buffer[3];
-		unsigned char d_buffer[6];
+		unsigned char a_buffer[3] = {0};
+		unsigned char d_buffer[6] = {0};
 
 		unsigned char unlock[] = {0x5A, 0xA5, 0x09, 0x82, 0x10, 0x32, 0x55, 0x4E, 0x4C, 0x4F, 0x43, 0x4B};
-		HAL_UART_Transmit(&huart1, unlock, 12, 0x20);   //show "UNLOCK"
+		HAL_UART_Transmit(&huart1, unlock, 12, 0x20);
 
 		a_buffer[0] = hh;
 		a_buffer[1] = mm;
 		a_buffer[2] = ss;
-		BCD2ASC(d_buffer, a_buffer, 6);  //convert BCD to ASCII to show time on screen
+		BCD2ASC(d_buffer, a_buffer, 6);
 
 		Dur_HMS[13] = d_buffer[5];
 		Dur_HMS[12] = d_buffer[4];
@@ -4763,16 +4307,12 @@ void Anti_Tamper_Handle()
 
 		HAL_UART_Transmit(&huart1, Dur_HMS, 14, 0x20);
 
-		counter= 0; //Added by Edwin to prevent record any pulse
-		last_counter=0; //Added by Edwin to prevent record any pulse
-		Dt=0;//Added by Edwin to prevent record any pulse
-
 		time_update();
 //		HAL_Delay(1000);
 	}
 }
 
-//void Lock_Count_Down(void)                        //這個FUNCTION並沒有被使用
+//void Lock_Count_Down(void)
 //{
 //	//get current time from rtc - ymd hms
 //	//set end time
@@ -4810,9 +4350,9 @@ void Anti_Tamper_Handle()
 //		cdh = 0;
 //	}
 //
-//	if (cds == 0 && cdm == 0 && cdh == 0) //                       到達解鎖 UNLOCK 時間後
+//	if (cds == 0 && cdm == 0 && cdh == 0)
 //	{
-//		Flag_Protect = FALSE;      // Flag protect 是判定是不是在鎖錶狀態
+//		Flag_Protect = FALSE;
 //		unsigned char lock_clear[] = {0x5A, 0xA5, 0x07, 0x82, 0x10, 0x32, 0x20, 0x20, 0x20, 0x20};
 //		HAL_UART_Transmit(&huart3, lock_clear, 10, 0x20);
 //		unsigned char C_Fare_clear[] = {0x5A, 0xA5, 0x04, 0x82, 0x10, 0x30, 0x20};
@@ -4820,19 +4360,6 @@ void Anti_Tamper_Handle()
 //		cds = 0;
 //		cdm = 0;
 //		cdh = 1;
-//
-//		//TIME清零 by Edwin
-//		sec = 0;
-//		min = 0;
-//		hou = 0;
-//		HAL_UART_Transmit(&huart1, (uint8_t *) Dur_HMS_clear, 14, 0x1C);
-//
-//		//Add by Edwin to clear counter during locking state
-//		counter=0;
-//		last_counter = 0;
-//		Dt=0;
-//		//End of clearing the record
-//
 //		Drv_state = S_VACANT;
 //	}
 //}
@@ -4856,9 +4383,11 @@ void Dec2ASC(uint32_t decimal, uint8_t* asc)
 
 uint32_t ASC2Dec(uint8_t* asc)
 {
+	printf("[debug] asc to dec : \n");
 	uint32_t decimal = 0;
 	for (int i=0; i<8; i++)
 	{
+
 		if (asc[i]>=0x30 && asc[i]<=0x39)
 			decimal = 10*decimal + (asc[i] - 0x30);
 	}
@@ -4980,39 +4509,38 @@ void E_read(void)
 	ttime_x = ASC2Dec(ttime);
 
 //Done: transfer eeprom data to display
-	uint8_t temp_array[4];
+//	uint8_t temp_array[4];
 
-	Long_to_byte(tkm_d, temp_array);
-	memcpy(dataDisplay, temp_array, sizeof(uint8_t)*4);
-	Long_to_byte(pkm_d, temp_array);
-	memcpy(dataDisplay+4, temp_array, sizeof(uint8_t)*4);
-	Long_to_byte(tflag_d, temp_array);
-	memcpy(dataDisplay+8, temp_array, sizeof(uint8_t)*4);
-	Long_to_byte(tpulse_d, temp_array);
-	memcpy(dataDisplay+12, temp_array, sizeof(uint8_t)*4);
-
-	tfare_d_x10 = tfare_d * 10;
-	Long_to_byte(tfare_d_x10, temp_array);
-	memcpy(dataDisplay+16, temp_array, sizeof(uint8_t)*4);
-	tsub_d_x10 = tsub_d * 10;
-	Long_to_byte(tsub_d_x10, temp_array);
-	memcpy(dataDisplay+20, temp_array, sizeof(uint8_t)*4);
-
-	Long_to_byte(ttime_x, temp_array);
-	memcpy(dataDisplay+24, temp_array, sizeof(uint8_t)*4);
-	Long_to_byte(cflag_d, temp_array);
-	memcpy(dataDisplay+28, temp_array, sizeof(uint8_t)*4);
-
-	cfare_d_x10 = cfare_d * 10;
-	Long_to_byte(cfare_d_x10, temp_array);
-	memcpy(dataDisplay+32, temp_array, sizeof(uint8_t)*4);
-	csub_d_x10 = csub_d * 10;
-	Long_to_byte(csub_d_x10, temp_array);
-	memcpy(dataDisplay+36, temp_array, sizeof(uint8_t)*4);
-
-	memcpy(total_hmi+6, dataDisplay, sizeof(uint8_t)*40);
-	HAL_UART_Transmit(&huart1, total_hmi, 46, 0x0E);
-	HAL_UART_Transmit(&huart1, total_detail, 34, 0x0E);    //0E is timeout  8HW+8FW+12(sn)+8(fare eff(deleted)=  28 bytes data  + 6 bytes data (header 5aa5  length 00 command 82 address 105c)
+//	Long_to_byte(tkm_d, temp_array);
+//	memcpy(dataDisplay, temp_array, sizeof(uint8_t)*4);
+//	Long_to_byte(pkm_d, temp_array);
+//	memcpy(dataDisplay+4, temp_array, sizeof(uint8_t)*4);
+//	Long_to_byte(tflag_d, temp_array);
+//	memcpy(dataDisplay+8, temp_array, sizeof(uint8_t)*4);
+//	Long_to_byte(tpulse_d, temp_array);
+//	memcpy(dataDisplay+12, temp_array, sizeof(uint8_t)*4);
+//
+//	tfare_d_x10 = tfare_d * 10;
+//	Long_to_byte(tfare_d_x10, temp_array);
+//	memcpy(dataDisplay+16, temp_array, sizeof(uint8_t)*4);
+//	tsub_d_x10 = tsub_d * 10;
+//	Long_to_byte(tsub_d_x10, temp_array);
+//	memcpy(dataDisplay+20, temp_array, sizeof(uint8_t)*4);
+//
+//	Long_to_byte(ttime_x, temp_array);
+//	memcpy(dataDisplay+24, temp_array, sizeof(uint8_t)*4);
+//	Long_to_byte(cflag_d, temp_array);
+//	memcpy(dataDisplay+28, temp_array, sizeof(uint8_t)*4);
+//
+//	cfare_d_x10 = cfare_d * 10;
+//	Long_to_byte(cfare_d_x10, temp_array);
+//	memcpy(dataDisplay+32, temp_array, sizeof(uint8_t)*4);
+//	csub_d_x10 = csub_d * 10;
+//	Long_to_byte(csub_d_x10, temp_array);
+//	memcpy(dataDisplay+36, temp_array, sizeof(uint8_t)*4);
+//
+//	memcpy(total_hmi+6, dataDisplay, sizeof(uint8_t)*40);
+//	HAL_UART_Transmit(&huart1, total_hmi, 46, 0x0E);
 }
 
 void E_write(void)

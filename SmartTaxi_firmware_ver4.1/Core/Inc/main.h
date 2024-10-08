@@ -79,7 +79,6 @@ uint32_t byte_to_Long(uint8_t* byteArray);
 void long_to_byte(uint16_t longInt, unsigned char* byteArray);
 uint32_t byte_to_long(uint8_t* byteArray);
 void long_to_byte_crc(uint16_t longInt, unsigned char* byteArray);
-int hex2Dec(unsigned char hex[]);
 void HMI_Command(const uint8_t* command, uint8_t* data, uint8_t NOB);
 void HMI_Transmit(char out[], uint8_t nob);
 uint16_t CRC16(unsigned char *cal, uint16_t len);
